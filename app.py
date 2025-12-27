@@ -112,31 +112,40 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-    /* ===== MOBILE-FIRST BACKGROUND ===== */
-    .stApp {
+    /* ===== LOGIN PAGE BACKGROUND (Van Gogh) ===== */
+    .login-page {
+        background: 
+            linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
+            url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+    }
+
+    /* ===== DASHBOARD BACKGROUND (Cosmic Nebula) ===== */
+    .dashboard-page {
         background: 
             radial-gradient(ellipse at center, rgba(100, 50, 150, 0.4) 0%, rgba(0, 0, 0, 0.95) 100%),
             url("https://agi-prod-file-upload-public-main-use1.s3.amazonaws.com/02b7c172-1771-423e-9d66-083a83b9031e");
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
-        color: #ffffff;
     }
 
     /* LOGIN HEADER */
     .sky-header {
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
-        padding: 30px 15px;
+        padding: 40px 10px;
         text-align: center;
         border-bottom: 3px solid #4A90E2;
-        border-radius: 0 0 30px 30px;
+        border-radius: 0 0 40px 40px;
         margin-bottom: 30px;
         position: relative;
     }
 
     .sparkle-title {
         font-family: 'Lobster', cursive !important;
-        font-size: clamp(2rem, 8vw, 4rem) !important; 
+        font-size: clamp(2.5rem, 8vw, 5rem) !important; 
         color: white !important;
         text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
         animation: title-glow 2s ease-in-out infinite alternate;
@@ -151,27 +160,32 @@ st.markdown("""
 
     .shooting-star {
         position: absolute;
-        top: 5px; left: 80%;
-        width: 2px; height: 2px;
+        top: 0; left: 80%;
+        width: 3px; height: 3px;
         background: white;
         animation: shoot 5s linear infinite;
     }
     
     @keyframes shoot {
         0% { transform: translateX(0) translateY(0); opacity: 1; }
-        15% { transform: translateX(-200px) translateY(200px); opacity: 0; }
+        15% { transform: translateX(-300px) translateY(300px); opacity: 0; }
         100% { opacity: 0; }
     }
 
     /* ===== LOGIN/SIGNUP FORMS ===== */
     [data-testid="stForm"] {
-        background: rgba(20, 20, 40, 0.8) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(15px);
-        border-radius: 20px !important;
-        border: 1px solid rgba(74, 144, 226, 0.3) !important;
-        padding: 25px 20px !important;
-        max-width: 100%;
-        margin: 0 auto;
+        border-radius: 30px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 30px !important;
+        max-width: 450px;
+        margin: auto;
+    }
+
+    label, p, .stButton, .stTextInput, .stSelectSlider {
+        font-family: 'Inter', sans-serif !important;
+        color: #ffffff !important;
     }
 
     /* ===== GLOWING ORB SLIDER (MOBILE OPTIMIZED) ===== */
@@ -319,12 +333,6 @@ st.markdown("""
         }
     }
     </style>
-    
-    <div class="sky-header">
-        <div class="shooting-star"></div>
-        <h1 class="sparkle-title">Stargaze</h1>
-        <p style="font-family: 'Inter', sans-serif; letter-spacing: 1px; font-size: clamp(0.7rem, 2vw, 0.9rem);">WHERE ART MEETS THE INFINITE</p>
-    </div>
     """, unsafe_allow_html=True)
 
 # 3.3: SESSION & PERSISTENCE LOGIC
@@ -345,6 +353,16 @@ if st.session_state.logged_in:
 
 # 3.4: THE ACCESS GATE (Login / Signup Switch)
 if not st.session_state.logged_in:
+    # APPLY VAN GOGH BACKGROUND TO LOGIN PAGE
+    st.markdown('<div class="login-page">', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="sky-header">
+        <div class="shooting-star"></div>
+        <h1 class="sparkle-title">Stargaze</h1>
+        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">WHERE ART MEETS THE INFINITE</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     if st.session_state.show_signup:
         # --- 3.4.1: SIGN UP FORM ---
@@ -381,9 +399,14 @@ if not st.session_state.logged_in:
         if st.button("New here? Create an Account"):
             st.session_state.show_signup = True
             st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # 3.5: THE MAIN OBSERVATORY (Logged-In State)
 else:
+    # APPLY COSMIC NEBULA BACKGROUND TO DASHBOARD
+    st.markdown('<div class="dashboard-page">', unsafe_allow_html=True)
+    
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
@@ -497,4 +520,5 @@ else:
         
         st.info("🎨 **Coming Soon:** Full creative journaling and artistic features will be available here.")
 
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
