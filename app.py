@@ -209,20 +209,106 @@ else:
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
     
-    # 3.5.1: THE DUAL-ZONE LENS
-    mode = st.select_slider("Lens", options=["Science", "Observatory", "Gallery"], value="Observatory")
+    # 3.5.1: THE CELESTIAL PORTAL (The "Torn" Switcher)
+# We use custom HTML/CSS for the modern slider because the default one is too bulky.
 
-    if mode == "Science":
-        st.title("🔬 Technical Data")
-        # INSERT SCIENCE MODULE HERE
-        
-    elif mode == "Gallery":
-        st.title("🎨 Celestial Gallery")
-        # INSERT GALLERY MODULE HERE
+st.markdown("""
+    <style>
+    /* 1. The Modern Minimalist Toggle */
+    .switch-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        margin: 20px 0;
+        padding: 10px;
+    }
 
-    else:
-        st.title("🌌 Main Feed")
-        uploaded = st.file_uploader("Upload Capture", type=['jpg', 'jpeg', 'png'])
-        if uploaded:
-            stars, img = stargaze_engine(uploaded.read(), 120, 4)
-            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    /* 2. The "Torn" Layout Container */
+    .portal-frame {
+        display: flex;
+        width: 100%;
+        height: 60vh;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+    }
+
+    /* Left Side: Science Description */
+    .pane-left {
+        flex: 1;
+        background: rgba(11, 13, 18, 0.8);
+        padding: 40px;
+        border-right: 2px dashed rgba(74, 144, 226, 0.5); /* The "Tear" Line */
+        transition: 0.5s;
+    }
+
+    /* Right Side: Art Description */
+    .pane-right {
+        flex: 1;
+        background: rgba(26, 26, 46, 0.8);
+        padding: 40px;
+        transition: 0.5s;
+    }
+
+    .pane-title {
+        font-family: 'Lobster', cursive;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .pane-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #cccccc;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# THE MODERN SLIDER (Refined)
+# We use a horizontal radio as a "mode selector" for a smoother feel
+st.write("---")
+view_choice = st.radio(
+    " ",
+    ["Science Mode", "Neutral", "Artistic Mode"],
+    index=1,
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+# THE TORN INTERFACE
+if view_choice == "Neutral":
+    st.markdown(f"""
+        <div class="portal-frame">
+            <div class="pane-left">
+                <h2 class="pane-title" style="color: #4A90E2;">The Blueprint</h2>
+                <p class="pane-text">
+                    <b>Objective Data extraction.</b><br>
+                    Here, we strip away the noise. We find coordinates, calculate angles, 
+                    and verify the geometric fingerprints of the stars. 
+                    Pure mathematical identification.
+                </p>
+            </div>
+            <div class="pane-right">
+                <h2 class="pane-title" style="color: #E0E1DD;">The Canvas</h2>
+                <p class="pane-text">
+                    <b>Subjective Exploration.</b><br>
+                    This is where the stars tell their stories. Extract the emotional 
+                    essence of your capture, add artistic overlays, and 
+                    archive your celestial memories.
+                </p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.info("💡 Slide the selector to the LEFT to begin analysis, or to the RIGHT to view your gallery.")
+
+elif view_choice == "Science Mode":
+    st.title("🔬 The Science Hub")
+    # This is where your original Star Engine results will show up in "Technical" style
+    
+elif view_choice == "Artistic Mode":
+    st.title("🎨 The Celestial Gallery")
+    # This is where the emotional/creative part will live
