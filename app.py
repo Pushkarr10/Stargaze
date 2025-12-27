@@ -100,76 +100,74 @@ def inject_css():
             url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
         """
         subtitle = "WHERE ART MEETS THE INFINITE"
-st.markdown(f"""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-.stApp {{
-    {bg}
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
-}}
+    st.markdown(f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-/* Bright corners overlay — non-destructive */
-.stApp::before {{
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(circle at center,
-        rgba(0,0,0,0.55) 0%,
-        rgba(0,0,0,0.25) 45%,
-        rgba(255,255,255,0.15) 100%);
-    z-index: 0;
-}}
+    .stApp {{
+        {bg}
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+    }}
 
-.sky-header {{
-    background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
-    padding: 40px 10px;
-    text-align: center;
-    border-bottom: 3px solid #4A90E2;
-    border-radius: 0 0 40px 40px;
-    margin-bottom: 30px;
-}}
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.65) 75%);
+        z-index: -1;
+    }}
 
-.sparkle-title {{
-    font-family: 'Lobster', cursive !important;
-    font-size: clamp(2.5rem, 8vw, 5rem) !important;
-    color: white !important;
-    text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
-    animation: title-glow 2s ease-in-out infinite alternate;
-    white-space: nowrap;
-}}
+    .sky-header {{
+        background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
+        padding: 40px 10px;
+        text-align: center;
+        border-bottom: 3px solid #4A90E2;
+        border-radius: 0 0 40px 40px;
+        margin-bottom: 30px;
+    }}
 
-@keyframes title-glow {{
-    from {{ text-shadow: 0 0 10px #fff; }}
-    to {{ text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }}
-}}
+    .sparkle-title {{
+        font-family: 'Lobster', cursive !important;
+        font-size: clamp(2.5rem, 8vw, 5rem) !important;
+        color: white !important;
+        text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
+        animation: title-glow 2s ease-in-out infinite alternate;
+        white-space: nowrap;
+    }}
 
-[data-testid="stForm"] {{
-    background: rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(15px);
-    border-radius: 30px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 30px !important;
-    max-width: 450px;
-    margin: auto;
-}}
+    @keyframes title-glow {{
+        from {{ text-shadow: 0 0 10px #fff; }}
+        to {{ text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }}
+    }}
 
-label, p, .stButton, .stTextInput, .stSelectSlider {{
-    font-family: 'Inter', sans-serif !important;
-    color: #ffffff !important;
-}}
-</style>
+    [data-testid="stForm"] {{
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(15px);
+        border-radius: 30px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 30px !important;
+        max-width: 450px;
+        margin: auto;
+    }}
 
-<div class="sky-header">
-    <h1 class="sparkle-title">Stargaze</h1>
-    <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">
-        {subtitle}
-    </p>
-</div>
-""", unsafe_allow_html=True)
+    label, p, .stButton, .stTextInput, .stSelectSlider {{
+        font-family: 'Inter', sans-serif !important;
+        color: #ffffff !important;
+    }}
+    </style>
+
+    <div class="sky-header">
+        <h1 class="sparkle-title">Stargaze</h1>
+        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">
+            {subtitle}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+inject_css()
 
 # 3.3: SESSION & PERSISTENCE LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
