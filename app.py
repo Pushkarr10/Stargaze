@@ -111,7 +111,7 @@ def inject_css():
         background-size: cover;
         background-position: center;
     }}
-.stApp::before {{
+    .stApp::before {{
     content: "";
     position: fixed;
     inset: 0;
@@ -130,7 +130,6 @@ def inject_css():
         border-radius: 0 0 40px 40px;
         margin-bottom: 30px;
     }}
-
     .sparkle-title {{
         font-family: 'Lobster', cursive !important;
         font-size: clamp(2.5rem, 8vw, 5rem) !important;
