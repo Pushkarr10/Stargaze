@@ -119,6 +119,36 @@ else:
 
     # -----------------------------------------------------------------
     # MODULE A: DUAL-ZONE SWITCHER (Science vs. Creative)
+    # --- ZONE 3: THE DUAL-WORLD UI ---
+
+# Central Switch logic
+mode = st.select_slider(
+    "Choose your Lens",
+    options=["Science Hub", "The Observatory", "Creative Gallery"],
+    value="The Observatory",
+    help="Slide to switch between technical analysis and emotional exploration."
+)
+
+if mode == "Science Hub":
+    st.markdown("<style>.main { background-color: #0b0d12 !important; font-family: 'Courier New'; }</style>", unsafe_allow_html=True)
+    st.title("🔬 TECHNICAL ANALYSIS MODE")
+    st.sidebar.info("Current Mode: Raw Data Extraction")
+    # Show: Metrics, Thresholds, Geometric Barcodes
+    
+elif mode == "Creative Gallery":
+    st.markdown("<style>.main { background-color: #1a1a2e !important; font-family: 'Georgia'; }</style>", unsafe_allow_html=True)
+    st.title("✨ CELESTIAL GALLERY")
+    st.sidebar.info("Current Mode: Aesthetic Appreciation")
+    # Show: Journaling, Beautiful Overlays, Emotional Quotes
+
+else: # The "Observatory" (The Center/Torn State)
+    st.title("🌌 Stargaze AI: The Meeting Point")
+    st.write("---")
+    left_co, right_co = st.columns(2)
+    with left_co:
+        st.button("Explore the Science 🧬", use_container_width=True)
+    with right_co:
+        st.button("Feel the Wonder 🎨", use_container_width=True)
     # -----------------------------------------------------------------
     # This is where we will put the "Torn UI" toggle code.
     
