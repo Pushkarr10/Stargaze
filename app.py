@@ -1,15 +1,15 @@
 import streamlit as st
-from supabase import create_client, Client
-import bcrypt
 import cv2
 import numpy as np
 import json
+import bcrypt
+import re
 from scipy.spatial import Delaunay
+from supabase import create_client, Client
 
-# ==========================================
-# ZONE 1: THE BACKBONE (Your Initial Code)
-# ==========================================
-# We keep these functions exactly as they were, so the "math" never breaks.
+# =================================================================
+# 🧬 ZONE 1: THE BACKBONE (Geometric Engine)
+# =================================================================
 
 def stargaze_engine(img_bytes, thresh_val, min_area):
     file_bytes = np.asarray(bytearray(img_bytes), dtype=np.uint8)
@@ -29,6 +29,7 @@ def match_patterns(stars, db_path='lookup_db.json'):
             db = json.load(f)
     except: return None, None, "Database not found."
     if len(stars) < 4: return None, None, "Need more stars."
+    
     tri = Delaunay(stars)
     matches = {}
     valid_simplices = []
@@ -41,139 +42,98 @@ def match_patterns(stars, db_path='lookup_db.json'):
                 if all(abs(b - f) < 0.05 for b, f in zip(barcode, fp)):
                     matches[name] = matches.get(name, 0) + 1
                     valid_simplices.append(simplex)
+    
     if not matches: return None, None, "No patterns recognized."
     return max(matches, key=matches.get), valid_simplices, "Success!"
 
-# ==========================================
-# ZONE 2: THE BRAIN (Database & Auth)
-# ==========================================
+# =================================================================
+# 🧠 ZONE 2: THE BRAIN (Database & Security)
+# =================================================================
 
 supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def hash_pass(p): return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
 def check_pass(p, h): return bcrypt.checkpw(p.encode(), h.encode())
+def is_valid_email(email): return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email) is not None
 
-# ==========================================
-# ZONE 3: THE INTERFACE (User Experience)
-# ==========================================
-
-st.set_page_config(page_title="Stargaze AI", page_icon="🌌", layout="wide")
-# ==========================================
-# ZONE 3: THE INTERFACE (The Validated UX)
-# ==========================================
-import re # Add this at the very top of your file with other imports
+# =================================================================
+# 🎨 ZONE 3: THE INTERFACE (User Experience)
+# =================================================================
 
 st.set_page_config(page_title="Stargaze AI", page_icon="🌌", layout="wide")
 
-# Helper: Email Pattern Validation
-def is_valid_email(email):
-    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-    return re.match(pattern, email) is not None
-
-# CSS for the "Night Mode" Observatory feel
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: white; }
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; border-radius: 5px; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Session Management
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-# --- THE LOGIN & REGISTRATION GATE ---
-if not st.session_state.logged_in:
-    st.title("🌌 Stargaze AI: Digital Observatory")
+@st.dialog("Welcome to the Observatory! 🔭")
+def welcome_popup():
+    st.write("""
+    ### Hey Explorer! 🌌
+    Welcome to **Stargaze AI**. You are now part of a community that turns curiosity into celestial maps.
     
+    **Your Journey:**
+    1. **Verify:** Use the Science Hub to ensure your capture is genuine.
+    2. **Analyze:** Let the Geometric Engine find the patterns.
+    3. **Collect:** Build your personal library of the cosmos.
+    """)
+    if st.button("Enter the Observatory"):
+        st.session_state.has_seen_intro = True
+        st.rerun()
+
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🌌 Stargaze AI")
     login_tab, signup_tab = st.tabs(["🔒 Log In", "🚀 Create Account"])
 
-    # 1. SIGN UP TAB (With Professional Validation)
     with signup_tab:
-        with st.form("registration_form", clear_on_submit=True):
-            st.info("Enter your details to create a permanent explorer profile.")
-            new_email = st.text_input("Email Address")
-            full_name = st.text_input("Display Name")
-            new_pass = st.text_input("Password", type="password", help="Minimum 6 characters")
-            confirm_pass = st.text_input("Confirm Password", type="password")
-            
-            submit_reg = st.form_submit_button("Initialize Profile")
-            
-            if submit_reg:
-                # --- VALIDATION LOGIC ---
-                if not is_valid_email(new_email):
-                    st.error("Invalid format. Please use a real email (e.g., name@mail.com).")
-                elif len(full_name) < 2:
-                    st.error("Please enter your full name.")
-                elif len(new_pass) < 6:
-                    st.error("Password too weak. Use at least 6 characters.")
-                elif new_pass != confirm_pass:
-                    st.error("Passwords do not match.")
-                else:
-                    try:
-                        # Check for existing user first
-                        existing = supabase.table("users").select("username").eq("username", new_email).execute()
-                        if existing.data:
-                            st.warning("This email is already registered. Head over to the login tab!")
-                        else:
-                            # Hashing and Saving to Supabase
-                            hashed = bcrypt.hashpw(new_pass.encode(), bcrypt.gensalt()).decode()
-                            supabase.table("users").insert({
-                                "username": new_email, 
-                                "name": full_name, 
-                                "password_hash": hashed
-                            }).execute()
-                            st.success(f"Welcome aboard, {full_name}! You can now log in.")
-                    except Exception as e:
-                        st.error("Observatory connection error. Please try again.")
+        with st.form("reg"):
+            email = st.text_input("Email")
+            name = st.text_input("Display Name")
+            pw = st.text_input("Password", type="password")
+            if st.form_submit_button("Join Observatory"):
+                if is_valid_email(email) and len(pw) >= 6:
+                    hashed = hash_pass(pw)
+                    supabase.table("users").insert({"username": email, "name": name, "password_hash": hashed}).execute()
+                    st.success("Account Ready! Please Log In.")
+                else: st.error("Invalid details provided.")
 
-    # 2. LOGIN TAB
     with login_tab:
-        with st.form("login_form"):
+        with st.form("log"):
             u = st.text_input("Email")
             p = st.text_input("Password", type="password")
-            if st.form_submit_button("Enter Observatory"):
+            if st.form_submit_button("Enter"):
                 res = supabase.table("users").select("*").eq("username", u).execute()
-                if res.data and bcrypt.checkpw(p.encode(), res.data[0]['password_hash'].encode()):
+                if res.data and check_pass(p, res.data[0]['password_hash']):
                     st.session_state.logged_in = True
                     st.session_state.user = res.data[0]
                     st.rerun()
-                else:
-                    st.error("Access Denied: Invalid email or password.")
-    
-# --- THE MAIN APP EXPERIENCE (Only visible if logged in) ---
+                else: st.error("Invalid Credentials.")
+
 else:
+    # --- LOGGED IN DASHBOARD ---
+    if "has_seen_intro" not in st.session_state:
+        welcome_popup()
+
     st.sidebar.title(f"🔭 {st.session_state.user['name']}")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
+    # -----------------------------------------------------------------
+    # MODULE A: DUAL-ZONE SWITCHER (Science vs. Creative)
+    # -----------------------------------------------------------------
+    # This is where we will put the "Torn UI" toggle code.
     
-    st.title("🌌 Stargaze AI: Pattern Matcher")
-    
-    with st.sidebar:
-        st.divider()
-        st.header("⚙️ Detection Controls")
-        t_val = st.slider("Sensitivity (Threshold)", 10, 255, 120)
-        a_min = st.slider("Min Star Size (px)", 1, 10, 4)
-    
+    st.title("Main Observatory Feed")
     uploaded = st.file_uploader("Upload Star Photo", type=['jpg', 'jpeg', 'png'])
-    
+
     if uploaded:
-        with st.spinner("Processing deep sky data..."):
-            # CALLING YOUR ORIGINAL BACKBONE CODE
-            stars, original = stargaze_engine(uploaded.read(), t_val, a_min)
-            winner, geometry, status = match_patterns(stars)
-            
-            # Displaying the results side-by-side
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(cv2.cvtColor(original, cv2.COLOR_BGR2RGB), caption="Raw Capture")
-            with col2:
-                if winner:
-                    st.success(f"Pattern Identified: {winner}")
-                    for s in geometry:
-                        cv2.polylines(original, [stars[s].astype(int)], True, (0, 255, 255), 2)
-                    st.image(cv2.cvtColor(original, cv2.COLOR_BGR2RGB), caption="Constellation Overlay")
-                else:
-                    st.error(f"Analysis: {status}")
+        # -----------------------------------------------------------------
+        # MODULE B: AUTHENTICATION & PROCESSING
+        # -----------------------------------------------------------------
+        # This is where we will put the EXIF Check and Image Enhancement.
+        
+        stars, img = stargaze_engine(uploaded.read(), 120, 4)
+        winner, geom, status = match_patterns(stars)
+        
+        if winner: st.success(f"Identified: {winner}")
+        else: st.info(status)
+        st.image(img, channels="BGR")
