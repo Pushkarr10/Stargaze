@@ -59,111 +59,162 @@ def is_valid_email(email): return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email) i
 # =================================================================
 # 🎨 ZONE 3: THE INTERFACE (User Experience)
 # =================================================================
+# =================================================================
+# 🎨 ZONE 3: THE INTERFACE (Artistic & Validated UX)
+# =================================================================
 
+# 1. PAGE SETUP & ARTISTIC CSS
 st.set_page_config(page_title="Stargaze AI", page_icon="🌌", layout="wide")
 
-@st.dialog("Welcome to the Observatory! 🔭")
-def welcome_popup():
-    st.write("""
-    ### Hey Explorer! 🌌
-    Welcome to **Stargaze AI**. You are now part of a community that turns curiosity into celestial maps.
-    
-    **Your Journey:**
-    1. **Verify:** Use the Science Hub to ensure your capture is genuine.
-    2. **Analyze:** Let the Geometric Engine find the patterns.
-    3. **Collect:** Build your personal library of the cosmos.
-    """)
-    if st.button("Enter the Observatory"):
-        st.session_state.has_seen_intro = True
-        st.rerun()
+# This block "paints" your app with the Starry Night theme and custom fonts
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Caveat&family=Shadows+Into+Light&display=swap');
 
+    /* The Main Background - Starry Night */
+    .stApp {
+        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
+        background-attachment: fixed;
+        background-size: cover;
+    }
+
+    /* Night Sky Header with Shooting Star Animation */
+    .sky-header {
+        background: linear-gradient(to bottom, #000000 0%, #0c1445 100%);
+        padding: 40px;
+        text-align: center;
+        border-bottom: 2px solid #4A90E2;
+        border-radius: 0 0 50px 50px;
+        margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shooting-star {
+        position: absolute;
+        top: 0; left: 80%;
+        width: 4px; height: 4px;
+        background: white;
+        opacity: 0;
+        box-shadow: 0 0 10px 2px white;
+        animation: shoot 4s linear infinite;
+    }
+
+    @keyframes shoot {
+        0% { transform: translateX(0) translateY(0); opacity: 1; }
+        20% { transform: translateX(-400px) translateY(400px); opacity: 0; }
+        100% { opacity: 0; }
+    }
+
+    /* Applying fonts to specific elements */
+    h1, h2, h3 {
+        font-family: 'Lobster', cursive !important;
+        color: #f0f0f0 !important;
+        text-shadow: 3px 3px 6px #000;
+    }
+    
+    .stMarkdown, p, label, .stTabs {
+        font-family: 'Caveat', cursive !important;
+        font-size: 1.6rem !important;
+        color: #ffffff !important;
+    }
+
+    /* Glassmorphism for Forms */
+    [data-testid="stForm"] {
+        background: rgba(0, 0, 0, 0.6) !important;
+        backdrop-filter: blur(15px);
+        border-radius: 25px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        padding: 30px !important;
+    }
+    </style>
+    
+    <div class="sky-header">
+        <div class="shooting-star"></div>
+        <h1>Stargaze AI</h1>
+        <p>A Digital Sanctuary for the Celestial Curious</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# 2. SESSION & ONBOARDING LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 
+# --- LOGOUT FIX: THE FIRST THING WE CHECK ---
+if st.session_state.logged_in:
+    if st.sidebar.button("✨ Leave the Observatory"):
+        st.session_state.logged_in = False
+        st.session_state.has_seen_intro = False # Reset intro for next time
+        st.rerun()
+
+# 3. ACCESS GATE (Login / Signup)
 if not st.session_state.logged_in:
-    st.title("🌌 Stargaze AI")
-    login_tab, signup_tab = st.tabs(["🔒 Log In", "🚀 Create Account"])
+    login_tab, signup_tab = st.tabs(["🔒 Resume Exploration", "🚀 Begin Journey"])
 
     with signup_tab:
         with st.form("reg"):
+            st.markdown("### Create Your Profile")
             email = st.text_input("Email")
-            name = st.text_input("Display Name")
+            name = st.text_input("Name")
             pw = st.text_input("Password", type="password")
-            if st.form_submit_button("Join Observatory"):
+            if st.form_submit_button("Initialize Account"):
                 if is_valid_email(email) and len(pw) >= 6:
                     hashed = hash_pass(pw)
                     supabase.table("users").insert({"username": email, "name": name, "password_hash": hashed}).execute()
-                    st.success("Account Ready! Please Log In.")
-                else: st.error("Invalid details provided.")
+                    st.success("Your profile is written in the stars. Please Log In.")
+                else: st.error("Please provide valid credentials (Min 6 chars for password).")
 
     with login_tab:
         with st.form("log"):
+            st.markdown("### Enter the Observatory")
             u = st.text_input("Email")
             p = st.text_input("Password", type="password")
-            if st.form_submit_button("Enter"):
+            if st.form_submit_button("Authenticate"):
                 res = supabase.table("users").select("*").eq("username", u).execute()
                 if res.data and check_pass(p, res.data[0]['password_hash']):
                     st.session_state.logged_in = True
                     st.session_state.user = res.data[0]
-                    st.rerun()
+                    st.rerun() # FORCE REFRESH TO HIDE LOGIN
                 else: st.error("Invalid Credentials.")
 
+# 4. THE OBSERVATORY DASHBOARD
 else:
-    # --- LOGGED IN DASHBOARD ---
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
-    st.sidebar.title(f"🔭 {st.session_state.user['name']}")
-    if st.sidebar.button("Log Out"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-    # -----------------------------------------------------------------
-    # MODULE A: DUAL-ZONE SWITCHER (Science vs. Creative)
-    # --- ZONE 3: THE DUAL-WORLD UI ---
-
-# Central Switch logic
-mode = st.select_slider(
-    "Choose your Lens",
-    options=["Science Hub", "The Observatory", "Creative Gallery"],
-    value="The Observatory",
-    help="Slide to switch between technical analysis and emotional exploration."
-)
-
-if mode == "Science Hub":
-    st.markdown("<style>.main { background-color: #0b0d12 !important; font-family: 'Courier New'; }</style>", unsafe_allow_html=True)
-    st.title("🔬 TECHNICAL ANALYSIS MODE")
-    st.sidebar.info("Current Mode: Raw Data Extraction")
-    # Show: Metrics, Thresholds, Geometric Barcodes
+    st.sidebar.markdown(f"## Welcome, {st.session_state.user['name']} ✨")
     
-elif mode == "Creative Gallery":
-    st.markdown("<style>.main { background-color: #1a1a2e !important; font-family: 'Georgia'; }</style>", unsafe_allow_html=True)
-    st.title("✨ CELESTIAL GALLERY")
-    st.sidebar.info("Current Mode: Aesthetic Appreciation")
-    # Show: Journaling, Beautiful Overlays, Emotional Quotes
+    # --- MODULE A: DUAL-ZONE SWITCHER ---
+    mode = st.select_slider(
+        "Adjust Your Lens",
+        options=["Science Hub", "The Observatory", "Creative Gallery"],
+        value="The Observatory"
+    )
 
-else: # The "Observatory" (The Center/Torn State)
-    st.title("🌌 Stargaze AI: The Meeting Point")
-    st.write("---")
-    left_co, right_co = st.columns(2)
-    with left_co:
-        st.button("Explore the Science 🧬", use_container_width=True)
-    with right_co:
-        st.button("Feel the Wonder 🎨", use_container_width=True)
-    # -----------------------------------------------------------------
-    # This is where we will put the "Torn UI" toggle code.
-    
-    st.title("Main Observatory Feed")
-    uploaded = st.file_uploader("Upload Star Photo", type=['jpg', 'jpeg', 'png'])
+    if mode == "Science Hub":
+        st.markdown("<style>.main { background: #0b0d12 !important; font-family: 'Courier New' !important; }</style>", unsafe_allow_html=True)
+        st.title("🔬 TECHNICAL ANALYSIS")
+        # Technical content goes here
+        
+    elif mode == "Creative Gallery":
+        st.markdown("<style>.main { background: #1a1a2e !important; font-family: 'Georgia' !important; }</style>", unsafe_allow_html=True)
+        st.title("🎨 CELESTIAL GALLERY")
+        # Artistic content goes here
 
-    if uploaded:
-        # -----------------------------------------------------------------
-        # MODULE B: AUTHENTICATION & PROCESSING
-        # -----------------------------------------------------------------
-        # This is where we will put the EXIF Check and Image Enhancement.
-        
-        stars, img = stargaze_engine(uploaded.read(), 120, 4)
-        winner, geom, status = match_patterns(stars)
-        
-        if winner: st.success(f"Identified: {winner}")
-        else: st.info(status)
-        st.image(img, channels="BGR")
+    else: # The Observatory (Standard Mode)
+        st.title("🌌 Main Observatory Feed")
+        uploaded = st.file_uploader("Upload Star Photo", type=['jpg', 'jpeg', 'png'])
+
+        if uploaded:
+            # --- MODULE B: AUTHENTICATION & PROCESSING ---
+            stars, img = stargaze_engine(uploaded.read(), 120, 4)
+            winner, geom, status = match_patterns(stars)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Raw Capture")
+            with col2:
+                if winner: 
+                    st.success(f"Pattern Verified: {winner}")
+                    # Drawing logic would go here
+                else: 
+                    st.info(status)
