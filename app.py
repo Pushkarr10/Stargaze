@@ -9,10 +9,7 @@ import base64
 def get_base64_image(path):
     with open(path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
-DASHBOARD_BG = get_base64_image(
-    "/mnt/data/ChatGPT Image Dec 27, 2025, 10_51_59 PM.png"
-)
-
+DASHBOARD_BG = get_base64_image("dashboard_bg.png")
 from scipy.spatial import Delaunay
 from supabase import create_client, Client
 
@@ -86,126 +83,91 @@ def welcome_popup():
     if st.button("Let's Start Mapping!"):
         st.session_state.has_seen_intro = True
         st.rerun()
-# 3.2: THE CSS VAULT (The Visual Identity)
+# 3.2: THE CSS VAULT (Clean & Conditional)
 
-LOGIN_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
+def inject_css():
+    if st.session_state.get("logged_in", False):
+        bg = f"""
+        background:
+            linear-gradient(180deg, rgba(10, 10, 25, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%),
+            url("data:image/png;base64,{DASHBOARD_BG}");
+        """
+        subtitle = "THE OBSERVATORY"
+    else:
+        bg = """
+        background:
+            linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
+            url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
+        """
+        subtitle = "WHERE ART MEETS THE INFINITE"
 
-/* ================= LOGIN / SIGNUP BACKGROUND ================= */
-.stApp {
-    background: 
-        linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
-        url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
-}
+    st.markdown(f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-/* ================= SHARED UI ELEMENTS ================= */
+    .stApp {{
+        {bg}
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+    }}
 
-.sky-header {
-    background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
-    padding: 40px 10px;
-    text-align: center;
-    border-bottom: 3px solid #4A90E2;
-    border-radius: 0 0 40px 40px;
-    margin-bottom: 30px;
-    position: relative;
-}
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.65) 75%);
+        z-index: -1;
+    }}
 
-.sparkle-title {
-    font-family: 'Lobster', cursive !important;
-    font-size: clamp(2.5rem, 8vw, 5rem) !important; 
-    color: white !important;
-    text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
-    animation: title-glow 2s ease-in-out infinite alternate;
-    white-space: nowrap;
-}
+    .sky-header {{
+        background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
+        padding: 40px 10px;
+        text-align: center;
+        border-bottom: 3px solid #4A90E2;
+        border-radius: 0 0 40px 40px;
+        margin-bottom: 30px;
+    }}
 
-@keyframes title-glow {
-    from { text-shadow: 0 0 10px #fff; }
-    to { text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }
-}
+    .sparkle-title {{
+        font-family: 'Lobster', cursive !important;
+        font-size: clamp(2.5rem, 8vw, 5rem) !important;
+        color: white !important;
+        text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
+        animation: title-glow 2s ease-in-out infinite alternate;
+        white-space: nowrap;
+    }}
 
-.shooting-star {
-    position: absolute;
-    top: 0; left: 80%;
-    width: 3px; height: 3px;
-    background: white;
-    animation: shoot 5s linear infinite;
-}
+    @keyframes title-glow {{
+        from {{ text-shadow: 0 0 10px #fff; }}
+        to {{ text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }}
+    }}
 
-@keyframes shoot {
-    0% { transform: translateX(0) translateY(0); opacity: 1; }
-    15% { transform: translateX(-300px) translateY(300px); opacity: 0; }
-    100% { opacity: 0; }
-}
+    [data-testid="stForm"] {{
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(15px);
+        border-radius: 30px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 30px !important;
+        max-width: 450px;
+        margin: auto;
+    }}
 
-/* ================= FORMS ================= */
+    label, p, .stButton, .stTextInput, .stSelectSlider {{
+        font-family: 'Inter', sans-serif !important;
+        color: #ffffff !important;
+    }}
+    </style>
 
-[data-testid="stForm"] {
-    background: rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(15px);
-    border-radius: 30px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 30px !important;
-    max-width: 450px;
-    margin: auto;
-}
+    <div class="sky-header">
+        <h1 class="sparkle-title">Stargaze</h1>
+        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">
+            {subtitle}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-label, p, .stButton, .stTextInput, .stSelectSlider {
-    font-family: 'Inter', sans-serif !important;
-    color: #ffffff !important;
-}
-</style>
-
-<div class="sky-header">
-    <div class="shooting-star"></div>
-    <h1 class="sparkle-title">Stargaze</h1>
-    <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">
-        WHERE ART MEETS THE INFINITE
-    </p>
-</div>
-"""
-
-DASHBOARD_CSS = f"""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
-
-/* ================= MAIN DASHBOARD BACKGROUND ================= */
-.stApp {{
-    background:
-        linear-gradient(180deg, rgba(10, 10, 25, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%),
-        url("data:image/png;base64,{DASHBOARD_BG}");
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
-}}
-
-/* Soft vignette for depth */
-.stApp::before {{
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.65) 75%);
-    z-index: -1;
-}}
-</style>
-
-<div class="sky-header">
-    <h1 class="sparkle-title">Stargaze</h1>
-    <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">
-        THE OBSERVATORY
-    </p>
-</div>
-"""
-
-# 🔁 Conditional Injection
-if st.session_state.get("logged_in", False):
-    st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
-else:
-    st.markdown(LOGIN_CSS, unsafe_allow_html=True)
+inject_css()
 
 # 3.3: SESSION & PERSISTENCE LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
