@@ -208,85 +208,96 @@ else:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-    
-# 3.5.1: THE ANCIENT TORN PORTAL
-# We are using high-end CSS for the "VPN" toggle and the "Torn Map" effect.
+# 3.5.1: THE TORN PARCHMENT PORTAL (Total Overhaul)
 
 st.markdown("""
     <style>
-    /* 1. THE VPN-STYLE TOGGLE (Thick & Smooth) */
-    .stRadio [data-testid="stWidgetLabel"] { display: none; } /* Hide default label */
+    @import url('https://fonts.googleapis.com/css2?family=Shadows+Into+Light&family=Lobster&display=swap');
+
+    /* 1. THE VPN TOGGLE (Thick, Glowing, Modern) */
+    .stRadio > div {
+        background: #121212 !important;
+        border: 4px solid #4A90E2 !important;
+        border-radius: 60px !important;
+        padding: 10px 20px !important;
+        box-shadow: 0 0 15px rgba(74, 144, 226, 0.4);
+    }
     
-    div[role="radiogroup"] {
-        background: #1e1e1e;
-        border: 3px solid #4A90E2;
-        border-radius: 50px;
-        padding: 5px;
+    /* 2. THE TORN MAP LOGIC (SVG MASKING) */
+    .tear-container {
         display: flex;
-        justify-content: space-around;
-        width: 300px;
-        margin: 0 auto 30px auto;
-    }
-
-    /* 2. THE TORN MAP CONTAINER (Mobile Responsive) */
-    .map-container {
-        position: relative;
         width: 100%;
-        min-height: 500px;
-        display: flex;
-        flex-direction: row;
-        filter: drop-shadow(0px 10px 20px rgba(0,0,0,0.5));
+        min-height: 550px;
+        margin-top: 20px;
+        position: relative;
+        overflow: visible;
     }
 
-    /* THE LEFT WING (SCIENCE) */
-    .map-wing-left {
+    /* THE LEFT WING (SCIENCE BLUEPRINT) */
+    .wing-science {
         flex: 1;
-        background: #f4e4bc; /* Parchment Color */
-        color: #1e1e1e;
-        padding: 30px;
-        /* THE JAGGED TEAR: Custom Clip Path */
-        clip-path: polygon(0% 0%, 95% 0%, 100% 12%, 93% 25%, 100% 38%, 92% 52%, 98% 68%, 91% 82%, 100% 100%, 0% 100%);
-        border-right: 1px solid rgba(0,0,0,0.1);
-        margin-right: -5px; /* Pull them together for the tear */
+        background-color: #f4e4bc; /* Parchment base */
+        background-image: radial-gradient(circle at 2px 2px, rgba(0,0,0,0.05) 1px, transparent 0);
+        background-size: 20px 20px; /* Graph paper look */
+        padding: 40px;
+        color: #1a1a1a;
+        position: relative;
+        /* THE ASYMMETRIC RIP */
+        clip-path: url(#tear-left);
+        filter: drop-shadow(-5px 5px 10px rgba(0,0,0,0.5));
+        transition: transform 0.3s ease;
     }
 
-    /* THE RIGHT WING (CREATIVE) */
-    .map-wing-right {
+    /* THE RIGHT WING (CREATIVE CANVAS) */
+    .wing-art {
         flex: 1;
-        background: #ede0c8; /* Slightly darker parchment */
+        background-color: #ede0c8;
+        padding: 40px;
         color: #2c1a1a;
-        padding: 30px;
-        /* THE MATCHING ASYMMETRIC TEAR */
-        clip-path: polygon(5% 0%, 100% 0%, 100% 100%, 8% 100%, 2% 85%, 9% 72%, 1% 55%, 10% 40%, 3% 22%, 10% 10%);
-        margin-left: -5px;
+        position: relative;
+        clip-path: url(#tear-right);
+        margin-left: -40px; /* The overlap that creates the 'tear' gap */
+        filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.5));
     }
 
-    /* TEXT STYLING FOR THE MAP */
-    .map-title {
+    .wing-science:hover, .wing-art:hover { transform: scale(1.02); z-index: 10; }
+
+    /* PARCHMENT TYPOGRAPHY */
+    .portal-title {
         font-family: 'Lobster', cursive;
-        font-size: 2rem;
-        margin-bottom: 15px;
-        border-bottom: 1px solid rgba(0,0,0,0.2);
+        font-size: 2.8rem;
+        border-bottom: 2px solid rgba(0,0,0,0.1);
+        margin-bottom: 20px;
     }
 
-    .map-body {
+    .portal-content {
         font-family: 'Shadows Into Light', cursive;
-        font-size: 1.3rem;
-        line-height: 1.4;
+        font-size: 1.5rem;
+        line-height: 1.3;
     }
 
-    /* MOBILE FIX: Stack the wings on very small screens */
+    /* MOBILE PROTECTION */
     @media (max-width: 768px) {
-        .map-container { flex-direction: column; gap: 20px; }
-        .map-wing-left, .map-wing-right { clip-path: none; border-radius: 15px; margin: 0; }
+        .tear-container { flex-direction: column; }
+        .wing-science, .wing-art { clip-path: none !important; margin: 10px 0; border-radius: 20px; }
     }
     </style>
+
+    <svg width="0" height="0">
+      <defs>
+        <clipPath id="tear-left" clipPathUnits="objectBoundingBox">
+          <path d="M0,0 H0.95 L0.92,0.1 L1,0.25 L0.9,0.4 L0.98,0.55 L0.88,0.7 L0.95,0.85 L0.9,1 H0 V0" />
+        </clipPath>
+        <clipPath id="tear-right" clipPathUnits="objectBoundingBox">
+          <path d="M0.05,0 H1 V1 H0.1 L0.08,0.9 L0,0.75 L0.12,0.6 L0.02,0.45 L0.15,0.3 L0.05,0.15 L0.1,0 Z" />
+        </clipPath>
+      </defs>
+    </svg>
 """, unsafe_allow_html=True)
 
-# THE VPN TOGGLE LOGIC
-# Index 0 = Science, 1 = Neutral, 2 = Art
+# 3.5.2: THE PORTAL LOGIC
 view_choice = st.radio(
-    "Select Mode",
+    "Lens Switcher",
     ["Science Hub", "The Observatory", "Creative Gallery"],
     index=1,
     horizontal=True,
@@ -294,34 +305,36 @@ view_choice = st.radio(
 )
 
 if view_choice == "The Observatory":
-    # THE TORN MAP UI
-    st.markdown(f"""
-        <div class="map-container">
-            <div class="map-wing-left">
-                <h2 class="map-title" style="color: #003366;">📜 The Blueprint</h2>
-                <div class="map-body">
-                    <b>Objective Extraction.</b><br>
-                    Coordinates: [Locked]<br>
-                    Geometric Fingerprints: [Pending]<br><br>
-                    <i>Strip the noise. Find the math. Verify the stars.</i>
+    st.markdown("""
+        <div class="tear-container">
+            <div class="wing-science">
+                <h2 class="portal-title" style="color: #003366;">📜 The Blueprint</h2>
+                <div class="portal-content">
+                    <b>MODE: OBJECTIVE DATA</b><br><br>
+                    Strip the colors. Find the math.<br>
+                    Verify the Geometric Fingerprint.<br>
+                    <br>
+                    <i>Status: Waiting for verified capture...</i>
                 </div>
             </div>
-            <div class="map-wing-right">
-                <h2 class="map-title" style="color: #660000;">🕯️ The Canvas</h2>
-                <div class="map-body">
-                    <b>Subjective Exploration.</b><br>
-                    Memories: [0 Items]<br>
-                    Emotional Essence: [Active]<br><br>
-                    <i>The stars tell stories. Capture the essence. Build your soul's catalog.</i>
+            <div class="wing-art">
+                <h2 class="portal-title" style="color: #660000;">🕯️ The Canvas</h2>
+                <div class="portal-content">
+                    <b>MODE: SUBJECTIVE WONDER</b><br><br>
+                    The stars are more than coordinates.<br>
+                    Attach your soul to the sky.<br>
+                    Archive the emotional essence.<br>
+                    <br>
+                    <i>Status: Ready for your story.</i>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
 elif view_choice == "Science Hub":
-    st.title("🔬 The Science Hub")
-    # ... (Rest of your technical engine)
+    st.title("🔬 Science Terminal")
+    # Technical logic goes here...
 
 elif view_choice == "Creative Gallery":
-    st.title("🎨 The Creative Gallery")
-    # ... (Rest of your artistic engine)
+    st.title("🎨 Celestial Gallery")
+    # Artistic logic goes here...
