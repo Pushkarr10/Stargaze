@@ -114,10 +114,13 @@ def inject_css():
 
     .stApp::before {{
         content: "";
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.65) 75%);
-        z-index: -1;
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center,
+        rgba(0,0,0,0.55) 0%,
+        rgba(0,0,0,0.25) 40%,
+        rgba(255,255,255,0.12) 100%);
+    z-index: -1;
     }}
 
     .sky-header {{
