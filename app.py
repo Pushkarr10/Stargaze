@@ -63,7 +63,7 @@ def is_valid_email(email): return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email) i
 # 🎨 ZONE 3: THE INTERFACE (The Celestial Sanctuary)
 # =================================================================
 
-# 1. THE DIALOG (Moved to top to prevent NameError)
+# 1. THE DIALOG 
 @st.dialog("Welcome to the Observatory! 🔭")
 def welcome_popup():
     st.markdown("""
@@ -71,30 +71,28 @@ def welcome_popup():
     Welcome to **Stargaze**. This is the start to your sparkling experience ✨✨✨.
     
     **Your Journey:**
-    2 Shades To the Experience
-    Slide the Slidder 
-    LEFT to enter a Astronomical Approach 
-    RIGHT to enter a Creative Approach
+    2 Shades To the Experience:
+    Slide the Slider 
+    **LEFT** to enter an Astronomical Approach 
+    **RIGHT** to enter a Creative Approach
     """)
     if st.button("Let's Start Mapping!"):
         st.session_state.has_seen_intro = True
         st.rerun()
 
-# 2. PAGE SETUP & ARTISTIC CSS
+# 2. THE CSS VAULT (The "Look" - Keep this at the top)
 st.set_page_config(page_title="Stargaze", page_icon="🌌", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-    /* The Main Background */
     .stApp {
         background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
         background-attachment: fixed;
         background-size: cover;
     }
 
-    /* Night Sky Header with Sparkles */
     .sky-header {
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
         padding: 50px;
@@ -105,7 +103,19 @@ st.markdown("""
         position: relative;
     }
 
-    /* SHOOTING STARS & SPARKLES */
+    /* SPARKLE TITLE EFFECT */
+    .sparkle-title {
+        font-family: 'Lobster', cursive !important;
+        font-size: 5rem !important;
+        color: white !important;
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #4A90E2;
+        animation: title-glow 2s ease-in-out infinite alternate;
+    }
+    @keyframes title-glow {
+        from { text-shadow: 0 0 10px #fff, 0 0 20px #fff; }
+        to { text-shadow: 0 0 20px #fff, 0 0 40px #4A90E2, 0 0 60px #4A90E2; }
+    }
+
     .shooting-star {
         position: absolute;
         top: 0; left: 80%;
@@ -128,46 +138,47 @@ st.markdown("""
     }
     @keyframes twinkle {
         0%, 100% { opacity: 0.3; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.2); }
+        50% { opacity: 1; transform: scale(1.5); }
     }
 
-    /* TYPOGRAPHY */
-    h1 { font-family: 'Lobster', cursive !important; font-size: 4rem !important; color: #f0f0f0 !important; }
-    
-    /* Clean font for labels and inputs */
-    label, p, .stButton, .stTabs, .stTextInput {
+    label, p, .stButton, .stTextInput {
         font-family: 'Inter', sans-serif !important;
         color: #ffffff !important;
     }
 
-    /* TAB HIGHLIGHTING */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: rgba(0, 0, 0, 0.7);
-        padding: 10px;
-        border-radius: 15px;
-    }
-
-    /* Glassmorphism Forms */
     [data-testid="stForm"] {
-        background: rgba(0, 0, 0, 0.8) !important;
-        backdrop-filter: blur(20px);
+        background: rgba(0, 0, 0, 0.85) !important;
+        backdrop-filter: blur(25px);
         border-radius: 30px !important;
-        border: 1px solid rgba(74, 144, 226, 0.3) !important;
+        border: 1px solid rgba(74, 144, 226, 0.4) !important;
         padding: 40px !important;
+        max-width: 500px;
+        margin: auto;
+    }
+    
+    .auth-toggle {
+        text-align: center;
+        margin-top: 20px;
+        cursor: pointer;
+        color: #4A90E2;
+        font-weight: bold;
     }
     </style>
     
     <div class="sky-header">
         <div class="shooting-star"></div>
-        <div class="sparkle" style="top:20%; left:10%; width:2px; height:2px;"></div>
-        <div class="sparkle" style="top:50%; left:85%; width:3px; height:3px;"></div>
-        <h1>Stargaze</h1>
-        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px;">WHERE ART MEETS THE INFINITE</p>
+        <div class="sparkle" style="top:20%; left:10%; width:3px; height:3px;"></div>
+        <div class="sparkle" style="top:70%; left:20%; width:2px; height:2px;"></div>
+        <div class="sparkle" style="top:40%; left:80%; width:4px; height:4px;"></div>
+        <div class="sparkle" style="top:10%; left:50%; width:2px; height:2px;"></div>
+        <h1 class="sparkle-title">Stargaze</h1>
+        <p style="font-family: 'Inter', sans-serif; letter-spacing: 3px; font-weight: bold;">WHERE ART MEETS THE INFINITE</p>
     </div>
     """, unsafe_allow_html=True)
 
 # 3. SESSION LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "show_signup" not in st.session_state: st.session_state.show_signup = False
 
 if st.session_state.logged_in:
     if st.sidebar.button("✨ Leave the Observatory"):
@@ -175,70 +186,61 @@ if st.session_state.logged_in:
         st.session_state.has_seen_intro = False
         st.rerun()
 
-# 4. ACCESS GATE
+# 4. ACCESS GATE (Mainstream Layout)
 if not st.session_state.logged_in:
-    login_tab, signup_tab = st.tabs(["🔒 Resume Exploration", "🚀 Begin Journey"])
-
-    with signup_tab:
+    
+    if st.session_state.show_signup:
+        # --- SIGN UP VIEW ---
         with st.form("reg"):
-            st.write("### Create Your Profile")
+            st.write("### 🚀 Join the Journey")
             email = st.text_input("Email Address")
             name = st.text_input("Preferred Name")
-            pw = st.text_input("Security Key (Password)", type="password")
-            if st.form_submit_button("Initialize Profile"):
+            pw = st.text_input("Create Security Key", type="password")
+            if st.form_submit_button("Create Account"):
                 if is_valid_email(email) and len(pw) >= 6:
                     hashed = hash_pass(pw)
                     supabase.table("users").insert({"username": email, "name": name, "password_hash": hashed}).execute()
-                    st.success("Your record is written in the stars. Please Log In.")
-                else: st.error("The cosmos requires a valid email and 6+ character password.")
+                    st.success("Welcome aboard! Please switch to login.")
+                else: st.error("Invalid credentials.")
+        
+        if st.button("Already have an account? Log In"):
+            st.session_state.show_signup = False
+            st.rerun()
 
-    with login_tab:
+    else:
+        # --- LOG IN VIEW ---
         with st.form("log"):
-            st.write("### Enter the Observatory")
+            st.write("### 🔒 Welcome Back")
             u = st.text_input("Email")
             p = st.text_input("Security Key", type="password")
-            if st.form_submit_button("Authenticate"):
+            if st.form_submit_button("Enter Observatory"):
                 res = supabase.table("users").select("*").eq("username", u).execute()
                 if res.data and check_pass(p, res.data[0]['password_hash']):
                     st.session_state.logged_in = True
                     st.session_state.user = res.data[0]
                     st.rerun()
-                else: st.error("Authentication Failed: Credentials not recognized.")
+                else: st.error("Credentials not recognized.")
+        
+        if st.button("New Explorer? Create an Account"):
+            st.session_state.show_signup = True
+            st.rerun()
 
 # 5. DASHBOARD
 else:
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
-    st.sidebar.markdown(f"## Welcome back, {st.session_state.user['name']} ✨")
+    st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
     
-    mode = st.select_slider(
-        "Adjust Your Lens",
-        options=["Science Hub", "The Observatory", "Creative Gallery"],
-        value="The Observatory"
-    )
+    mode = st.select_slider("Lens", options=["Science", "Observatory", "Gallery"], value="Observatory")
 
-    if mode == "Science Hub":
-        st.markdown("<style>.main { background: #0b0d12 !important; }</style>", unsafe_allow_html=True)
-        st.title("🔬 Technical Analysis")
-        # Science content...
-        
-    elif mode == "Creative Gallery":
-        st.markdown("<style>.main { background: #1a1a2e !important; }</style>", unsafe_allow_html=True)
+    if mode == "Science":
+        st.title("🔬 Technical Data")
+    elif mode == "Gallery":
         st.title("🎨 Celestial Gallery")
-        # Art content...
-
     else:
-        st.title("🌌 Main Observatory Feed")
-        uploaded = st.file_uploader("Upload Star Photo", type=['jpg', 'jpeg', 'png'])
-
+        st.title("🌌 Main Feed")
+        uploaded = st.file_uploader("Upload Capture", type=['jpg', 'jpeg', 'png'])
         if uploaded:
             stars, img = stargaze_engine(uploaded.read(), 120, 4)
-            winner, geom, status = match_patterns(stars)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Raw Input")
-            with col2:
-                if winner: st.success(f"Pattern Verified: {winner}")
-                else: st.info(status)
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
