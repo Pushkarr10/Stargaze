@@ -62,6 +62,9 @@ def is_valid_email(email): return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email) i
 # =================================================================
 # 🎨 ZONE 3: THE INTERFACE (The Celestial Sanctuary)
 # =================================================================
+# =================================================================
+# 🎨 ZONE 3: THE INTERFACE (The Celestial Sanctuary)
+# =================================================================
 
 # 3.1: THE DIALOG (Onboarding)
 @st.dialog("Welcome to the Observatory! 🔭")
@@ -78,20 +81,24 @@ def welcome_popup():
         st.session_state.has_seen_intro = True
         st.rerun()
 
-# 3.2: THE CSS VAULT (The Visual Identity)
+# 3.2: THE CSS VAULT (Visual Identity & Layout)
+# We use your cosmic image with a three-point gradient for the spotlight effect.
+st.set_page_config(page_title="Stargaze", page_icon="🌌", layout="wide")
+
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&family=Shadows+Into+Light&display=swap');
 
-    /* The Main Background with Gradient Overlay */
+    /* BACKGROUND: Cosmic Image + Spotlight Gradient */
     .stApp {
         background: 
-            linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
-            url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
+            linear-gradient(90deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.9) 100%),
+            url("https://raw.githubusercontent.com/Pushkar-Stargaze/assets/main/cosmic_bg.jpg");
         background-attachment: fixed;
         background-size: cover;
     }
 
+    /* HEADER: Sparkle Title & Shooting Stars */
     .sky-header {
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
         padding: 40px 10px;
@@ -110,215 +117,144 @@ st.markdown("""
         animation: title-glow 2s ease-in-out infinite alternate;
         white-space: nowrap;
     }
-
     @keyframes title-glow {
         from { text-shadow: 0 0 10px #fff; }
-        to { text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }
+        to { text-shadow: 0 0 25px #fff, 0 0 40px #4A90E2; }
     }
 
-    .shooting-star {
-        position: absolute;
-        top: 0; left: 80%;
-        width: 3px; height: 3px;
-        background: white;
-        animation: shoot 5s linear infinite;
+    /* THE MODERN ORB SLIDER */
+    div[data-baseweb="slider"] {
+        background: rgba(255, 255, 255, 0.1) !important;
+        height: 14px !important;
+        border-radius: 20px !important;
     }
-    
-    @keyframes shoot {
-        0% { transform: translateX(0) translateY(0); opacity: 1; }
-        15% { transform: translateX(-300px) translateY(300px); opacity: 0; }
-        100% { opacity: 0; }
-    }
-
-    /* Form and Text Styling */
-    [data-testid="stForm"] {
-        background: rgba(255, 255, 255, 0.05) !important;
-        backdrop-filter: blur(15px);
-        border-radius: 30px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 30px !important;
-        max-width: 450px;
-        margin: auto;
+    div[role="slider"] {
+        background: radial-gradient(circle, #ffffff 0%, #4A90E2 100%) !important;
+        border: 2px solid white !important;
+        box-shadow: 0 0 18px #4A90E2 !important;
+        width: 28px !important;
+        height: 28px !important;
     }
 
-    label, p, .stButton, .stTextInput, .stSelectSlider {
-        font-family: 'Inter', sans-serif !important;
-        color: #ffffff !important;
+    /* THE ASYMMETRIC TORN PORTAL */
+    .tear-wrapper {
+        display: flex;
+        width: 100%;
+        min-height: 520px;
+        position: relative;
+        filter: drop-shadow(0px 15px 35px rgba(0,0,0,0.8));
+    }
+
+    .wing-science {
+        flex: 1;
+        background-color: #f4e4bc;
+        background-image: radial-gradient(rgba(0,0,0,0.1) 1px, transparent 1px);
+        background-size: 25px 25px;
+        padding: 45px;
+        color: #1a1a1a;
+        clip-path: polygon(0% 0%, 96% 0%, 100% 15%, 92% 30%, 100% 45%, 93% 60%, 98% 75%, 91% 90%, 100% 100%, 0% 100%);
+    }
+
+    .wing-art {
+        flex: 1;
+        background-color: #ede0c8;
+        padding: 45px;
+        color: #2c1a1a;
+        margin-left: -35px;
+        clip-path: polygon(6% 0%, 100% 0%, 100% 100%, 8% 100%, 2% 85%, 10% 70%, 1% 55%, 9% 40%, 3% 25%, 11% 10%);
+    }
+
+    .map-header { font-family: 'Lobster', cursive; font-size: 2.6rem; margin-bottom: 20px; }
+    .map-text { font-family: 'Shadows Into Light', cursive; font-size: 1.6rem; line-height: 1.4; }
+
+    /* MOBILE GUARD */
+    @media (max-width: 800px) {
+        .tear-wrapper { flex-direction: column; }
+        .wing-science, .wing-art { clip-path: none !important; margin: 15px 0; border-radius: 25px; }
     }
     </style>
     
     <div class="sky-header">
-        <div class="shooting-star"></div>
         <h1 class="sparkle-title">Stargaze</h1>
-        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">WHERE ART MEETS THE INFINITE</p>
+        <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-weight: bold;">WHERE ART MEETS THE INFINITE</p>
     </div>
-    """, unsafe_allow_html=True)
-# 3.3: SESSION & PERSISTENCE LOGIC
+""", unsafe_allow_html=True)
+
+# 3.3: ACCESS GATE LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
-if "show_signup" not in st.session_state: st.session_state.show_signup = False
 
-if st.session_state.logged_in:
-    if st.sidebar.button("✨ Leave Observatory"):
-        st.session_state.logged_in = False
-        st.session_state.has_seen_intro = False
-        st.rerun()
-
-# 3.4: THE ACCESS GATE (Login / Signup Switch)
 if not st.session_state.logged_in:
-    
-    if st.session_state.show_signup:
-        # --- 3.4.1: SIGN UP FORM ---
-        with st.form("reg"):
-            st.write("### ✨ Join the Observatory")
-            email = st.text_input("Email Address")
-            name = st.text_input("What should we call you?")
-            pw = st.text_input("Password", type="password")
-            if st.form_submit_button("Create Account"):
-                if is_valid_email(email) and len(pw) >= 6:
-                    hashed = hash_pass(pw)
-                    supabase.table("users").insert({"username": email, "name": name, "password_hash": hashed}).execute()
-                    st.success("Welcome! You can now log in.")
-                else: st.error("Please use a valid email and 6+ character password.")
-        
-        if st.button("Back to Login"):
-            st.session_state.show_signup = False
-            st.rerun()
-
-    else:
-        # --- 3.4.2: LOGIN FORM ---
+    # --- LOGIN & SIGNUP VIEWS ---
+    login_tab, signup_tab = st.tabs(["🔒 Welcome Back", "🚀 Begin Journey"])
+    with login_tab:
         with st.form("log"):
-            st.write("### ✨ Welcome Back")
             u = st.text_input("Email")
             p = st.text_input("Password", type="password")
-            if st.form_submit_button("Open the Skies"):
+            if st.form_submit_button("Enter the Observatory"):
                 res = supabase.table("users").select("*").eq("username", u).execute()
                 if res.data and check_pass(p, res.data[0]['password_hash']):
                     st.session_state.logged_in = True
                     st.session_state.user = res.data[0]
                     st.rerun()
                 else: st.error("Credentials not recognized.")
-        
-        if st.button("New here? Create an Account"):
-            st.session_state.show_signup = True
-            st.rerun()
+    with signup_tab:
+        with st.form("reg"):
+            email_reg = st.text_input("Email")
+            name_reg = st.text_input("Preferred Name")
+            pw_reg = st.text_input("Password", type="password")
+            if st.form_submit_button("Join Us"):
+                if is_valid_email(email_reg) and len(pw_reg) >= 6:
+                    hashed = hash_pass(pw_reg)
+                    supabase.table("users").insert({"username": email_reg, "name": name_reg, "password_hash": hashed}).execute()
+                    st.success("Welcome aboard! Please Log In.")
+                else: st.error("Use a valid email and 6+ character password.")
 
-# 3.5: THE MAIN OBSERVATORY (Logged-In State)
+# 3.5: THE MAIN PORTAL (Logged-In)
 else:
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-# 3.5.1: THE ANCIENT TORN PORTAL (SVG Rendered)
-
-# This block creates the physical "Tear" using coordinate-based SVG paths.
-st.markdown("""
-    <style>
-    /* 1. THE VPN-STYLE SWITCH (Thick, Smooth, Modern) */
-    .stRadio > div {
-        background: #1a1a1a !important;
-        border: 4px solid #4A90E2 !important;
-        border-radius: 60px !important;
-        padding: 8px 20px !important;
-        max-width: 400px;
-        margin: 0 auto 40px auto;
-        box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
-    }
+    if st.sidebar.button("✨ Leave Observatory"):
+        st.session_state.logged_in = False
+        st.rerun()
     
-    /* 2. THE TORN MAP CONTAINER */
-    .tear-wrapper {
-        display: flex;
-        width: 100%;
-        min-height: 500px;
-        position: relative;
-        overflow: visible;
-        filter: drop-shadow(0px 15px 30px rgba(0,0,0,0.7));
-    }
+    # THE TRUE MODERN SELECT SLIDER
+    mode_select = st.select_slider(
+        "Lens Selection",
+        options=["Science Hub", "The Observatory", "Creative Gallery"],
+        value="The Observatory",
+        label_visibility="collapsed"
+    )
 
-    /* THE SCIENCE WING (LEFT) */
-    .wing-science {
-        flex: 1;
-        background-color: #f4e4bc; /* Aged Parchment */
-        background-image: radial-gradient(rgba(0,0,0,0.1) 1px, transparent 1px);
-        background-size: 25px 25px; /* Subtle graph/blueprint pattern */
-        padding: 45px;
-        color: #1a1a1a;
-        /* THE JAGGED CLIP-PATH */
-        clip-path: polygon(0% 0%, 96% 0%, 100% 15%, 92% 30%, 100% 45%, 93% 60%, 98% 75%, 91% 90%, 100% 100%, 0% 100%);
-        border-right: 1px solid rgba(0,0,0,0.1);
-        z-index: 2;
-    }
-
-    /* THE ART WING (RIGHT) */
-    .wing-art {
-        flex: 1;
-        background-color: #ede0c8; /* Slightly darker vellum */
-        padding: 45px;
-        color: #2c1a1a;
-        margin-left: -35px; /* Overlap creates the 'rip' depth */
-        /* ASYMMETRIC MATCHING TEAR */
-        clip-path: polygon(6% 0%, 100% 0%, 100% 100%, 8% 100%, 2% 85%, 10% 70%, 1% 55%, 9% 40%, 3% 25%, 11% 10%);
-        z-index: 1;
-    }
-
-    /* TYPOGRAPHY FOR THE MAP */
-    .map-header {
-        font-family: 'Lobster', cursive;
-        font-size: 2.5rem;
-        margin-bottom: 20px;
-        border-bottom: 2px solid rgba(0,0,0,0.1);
-    }
-
-    .map-text {
-        font-family: 'Shadows Into Light', cursive;
-        font-size: 1.5rem;
-        line-height: 1.4;
-    }
-
-    /* MOBILE RESPONSIVENESS: Stacks wings so they don't distort */
-    @media (max-width: 800px) {
-        .tear-wrapper { flex-direction: column; }
-        .wing-science, .wing-art { clip-path: none !important; margin: 10px 0; border-radius: 20px; }
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# 3.5.2: THE PORTAL LOGIC
-mode_select = st.radio(
-    "Choose Your Lens",
-    ["Science Hub", "The Observatory", "Creative Gallery"],
-    index=1,
-    horizontal=True,
-    label_visibility="collapsed"
-)
-
-if mode_select == "The Observatory":
-    st.markdown("""
-        <div class="tear-wrapper">
-            <div class="wing-science">
-                <h2 class="map-header" style="color: #003366;">📜 The Blueprint</h2>
-                <div class="map-text">
-                    <b>MODE: OBJECTIVE DATA</b><br><br>
-                    Coordinates: [Scanning...]<br>
-                    Geometric Fingerprints: [Pending]<br><br>
-                    <i>Strip away the color. Find the math. Verify the stars.</i>
+    if mode_select == "The Observatory":
+        st.markdown("""
+            <div class="tear-wrapper">
+                <div class="wing-science">
+                    <h2 class="map-header" style="color: #003366;">📜 The Blueprint</h2>
+                    <div class="map-text">
+                        <b>MODE: OBJECTIVE DATA</b><br><br>
+                        Strip away the color. Find the math.<br>
+                        Verify the Geometric Fingerprint.<br><br>
+                        <i>Verify your capture to begin analysis.</i>
+                    </div>
+                </div>
+                <div class="wing-art">
+                    <h2 class="map-header" style="color: #660000;">🕯️ The Canvas</h2>
+                    <div class="map-text">
+                        <b>MODE: SUBJECTIVE WONDER</b><br><br>
+                        The stars are more than pixels.<br>
+                        Capture the story. Build your soul's catalog.<br><br>
+                        <i>The stars are waiting for your essence.</i>
+                    </div>
                 </div>
             </div>
-            <div class="wing-art">
-                <h2 class="map-header" style="color: #660000;">🕯️ The Canvas</h2>
-                <div class="map-text">
-                    <b>MODE: SUBJECTIVE WONDER</b><br><br>
-                    Memories: [0 Found]<br>
-                    Emotional Essence: [Active]<br><br>
-                    <i>The stars are not just pixels. Capture the story. Build your soul's catalog.</i>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-elif mode_select == "Science Hub":
-    st.title("🔬 Science Terminal")
-    # Technical logic...
-
-elif mode_select == "Creative Gallery":
-    st.title("🎨 Celestial Gallery")
-    # Artistic logic...
+    elif mode_select == "Science Hub":
+        st.title("🔬 Science Terminal")
+        # INSERT: EXIF Checker & detection here
+        
+    elif mode_select == "Creative Gallery":
+        st.title("🎨 Celestial Gallery")
+        # INSERT: Aesthetic filters & story-telling here
