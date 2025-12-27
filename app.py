@@ -1,96 +1,117 @@
 import streamlit as st
 import cv2
 import numpy as np
+import streamlit_authenticator as stauth
 import json
 from scipy.spatial import Delaunay
 
-# 1. THE ENHANCEMENT ENGINE
-def lookup_engine_detect(img_bytes, thresh_val, min_area):
+# ==========================================
+# PHASE 1: THE CELESTIAL ENGINE (The Backbone)
+# ==========================================
+
+def stargaze_engine(img_bytes, thresh_val, min_area):
+    """Detects stars in the uploaded image."""
     file_bytes = np.asarray(bytearray(img_bytes), dtype=np.uint8)
     img = cv2.imdecode(file_bytes, 1)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Local Contrast (CLAHE)
+    
+    # Enhancement & Noise Removal
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
     enhanced = clahe.apply(gray)
-
-    # Noise Removal
     _, thresh = cv2.threshold(enhanced, thresh_val, 255, cv2.THRESH_BINARY)
-    kernel = np.ones((2,2), np.uint8)
-    morphed = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-
-    # Feature Extraction
+    morphed = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, np.ones((2,2), np.uint8))
+    
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(morphed)
     stars = np.array([centroids[i] for i in range(1, num_labels) if min_area < stats[i, cv2.CC_STAT_AREA] < 100])
     return stars, img
 
-# 2. THE GEOMETRIC ANALYZER
-def match_and_prune(stars, db_path='lookup_db.json', tolerance=1.5):
-    if len(stars) < 4: return None, None, "Insufficient stars detected."
-    with open(db_path, 'r') as f:
-        db = json.load(f)
-
+def match_patterns(stars, db_path='lookup_db.json'):
+    """Matches detected stars against the geometric database."""
+    try:
+        with open(db_path, 'r') as f:
+            db = json.load(f)
+    except: return None, None, "Database (lookup_db.json) not found."
+    
+    if len(stars) < 4: return None, None, "Need more stars for a match."
+    
     tri = Delaunay(stars)
+    matches = {}
     valid_simplices = []
-    valid_point_indices = set()
-    matches_found = {}
-
+    
     for simplex in tri.simplices:
         p1, p2, p3 = stars[simplex]
-        a, b, c = np.linalg.norm(p2-p3), np.linalg.norm(p1-p3), np.linalg.norm(p1-p2)
-        try:
-            ang1 = np.degrees(np.arccos(np.clip((b**2 + c**2 - a**2) / (2*b*c), -1, 1)))
-            ang2 = np.degrees(np.arccos(np.clip((a**2 + c**2 - b**2) / (2*a*c), -1, 1)))
-            p_tri = tuple(sorted([round(ang1, 1), round(ang2, 1), round(180-ang1-ang2, 1)]))
+        side_lens = sorted([np.linalg.norm(p1-p2), np.linalg.norm(p2-p3), np.linalg.norm(p3-p1)])
+        barcode = [round(side_lens[0]/side_lens[2], 2), round(side_lens[1]/side_lens[2], 2)]
+        
+        for name, fingerprints in db.items():
+            for fp in fingerprints:
+                if all(abs(b - f) < 0.05 for b, f in zip(barcode, fp)):
+                    matches[name] = matches.get(name, 0) + 1
+                    valid_simplices.append(simplex)
+    
+    if not matches: return None, None, "No patterns recognized."
+    return max(matches, key=matches.get), valid_simplices, "Success!"
 
-            for const_name, db_fp in db.items():
-                for d_tri in db_fp:
-                    if all(abs(p - d) < tolerance for p, d in zip(p_tri, d_tri)):
-                        valid_simplices.append(simplex)
-                        valid_point_indices.update(simplex)
-                        matches_found[const_name] = matches_found.get(const_name, 0) + 1
-                        break
-        except: continue
+# ==========================================
+# PHASE 2: UI DESIGN & AUTH (The New Shell)
+# ==========================================
 
-    if not matches_found: return None, None, "No constellations recognized."
-    winner = max(matches_found, key=matches_found.get)
-    return winner, (valid_simplices, list(valid_point_indices)), f"Target: {winner}"
+st.set_page_config(page_title="Stargaze AI", page_icon="🌌", layout="wide")
 
-# 3. STREAMLIT UI LAYOUT
-st.set_page_config(page_title="Project Lookup", layout="wide")
-st.title("🛰️ Project Lookup: AI Star Tracker")
+# Custom CSS for the 'Night Sky' look
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; color: white; }
+    .stButton>button { border-radius: 20px; background-color: #4A90E2; color: white; }
+    </style>
+    """, unsafe_allow_code=True)
 
-with st.sidebar:
-    st.header("⚙️ Image Controls")
-    t_val = st.slider("Sensitivity (Threshold)", 10, 255, 70)
-    a_min = st.slider("Min Star Size (px)", 1, 10, 3)
-    st.info("Increase sensitivity for faint stars; increase size to ignore noise.")
+# Login Credentials
+names = ['Pushkar']
+usernames = ['pushkar']
+passwords = ['stargaze123']
 
-uploaded_file = st.file_uploader("Upload Star Photo", type=['jpg', 'png', 'jpeg'])
+authenticator = stauth.Authenticate(names, usernames, passwords, 
+    'stargaze_cookie', 'signature_key', cookie_expiry_days=30)
 
-if uploaded_file is not None:
-    col1, col2 = st.columns(2)
-    stars, img = lookup_engine_detect(uploaded_file.read(), t_val, a_min)
-    winner, geometry, status = match_and_prune(stars)
+name, authentication_status, username = authenticator.login('Login', 'main')
 
-    with col1:
-        st.write("### Raw Detection")
-        # Visual feedback of ALL detected points
-        raw_preview = img.copy()
-        for x, y in stars:
-            cv2.circle(raw_preview, (int(x), int(y)), 5, (255, 0, 0), -1)
-        st.image(cv2.cvtColor(raw_preview, cv2.COLOR_BGR2RGB), use_container_width=True)
+# ==========================================
+# PHASE 3: THE PROTECTED APP EXPERIENCE
+# ==========================================
 
-    with col2:
-        st.write("### Identified Pattern")
-        if winner:
-            st.success(status)
-            valid_simplices, valid_indices = geometry
-            overlay = img.copy()
-            for simplex in valid_simplices:
-                cv2.polylines(overlay, [stars[simplex].astype(int)], True, (255, 255, 0), 2)
-            for idx in valid_indices:
-                cv2.circle(overlay, (int(stars[idx][0]), int(stars[idx][1])), 8, (0, 255, 0), -1)
-            st.image(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB), use_container_width=True)
-        else:
-            st.error(status)
+if authentication_status:
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.title(f"Welcome, {name} ✨")
+    
+    st.title("🌌 Stargaze: AI Celestial Mapper")
+    
+    with st.sidebar:
+        st.divider()
+        st.header("⚙️ Image Processing")
+        t_val = st.slider("Sensitivity", 10, 255, 120)
+        a_min = st.slider("Min Star Size (px)", 1, 10, 4)
+
+    uploaded = st.file_uploader("Upload Sky Photo", type=['jpg', 'png', 'jpeg'])
+
+    if uploaded:
+        with st.spinner("Analyzing the deep sky..."):
+            stars, original = stargaze_engine(uploaded.read(), t_val, a_min)
+            winner, geometry, status = match_patterns(stars)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(cv2.cvtColor(original, cv2.COLOR_BGR2RGB), caption="Raw Input")
+            with col2:
+                if winner:
+                    st.success(f"Constellation Identified: {winner}")
+                    for s in geometry:
+                        cv2.polylines(original, [stars[s].astype(int)], True, (0, 255, 255), 2)
+                    st.image(cv2.cvtColor(original, cv2.COLOR_BGR2RGB), caption="Identified Pattern")
+                else:
+                    st.error(status)
+
+elif authentication_status == False:
+    st.error('Username/password is incorrect')
+elif authentication_status == None:
+    st.warning('Please enter your credentials to access the observatory.')
