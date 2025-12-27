@@ -145,7 +145,7 @@ if not st.session_state.logged_in:
 # --- THE MAIN APP EXPERIENCE (Only visible if logged in) ---
 else:
     @st.dialog("Welcome to the Observatory! 🔭")
-def welcome_popup():
+    def welcome_popup():
     st.write("""
     ### Hey Explorer! 🌌
     Welcome to **Stargaze AI**, where we turn your blurry night-sky photos into actual maps of the cosmos.
@@ -166,6 +166,7 @@ if st.session_state.logged_in:
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
         st.session_state.has_seen_intro = True
+
     st.sidebar.title(f"🔭 {st.session_state.user['name']}")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
