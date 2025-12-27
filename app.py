@@ -6,16 +6,14 @@ import json
 from scipy.spatial import Delaunay
 
 # ==========================================
-# PHASE 1: THE CELESTIAL ENGINE (The Backbone)
+# PHASE 1: THE CELESTIAL ENGINE (Backbone)
 # ==========================================
 
 def stargaze_engine(img_bytes, thresh_val, min_area):
-    """Detects stars in the uploaded image."""
     file_bytes = np.asarray(bytearray(img_bytes), dtype=np.uint8)
     img = cv2.imdecode(file_bytes, 1)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Enhancement & Noise Removal
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
     enhanced = clahe.apply(gray)
     _, thresh = cv2.threshold(enhanced, thresh_val, 255, cv2.THRESH_BINARY)
@@ -26,13 +24,12 @@ def stargaze_engine(img_bytes, thresh_val, min_area):
     return stars, img
 
 def match_patterns(stars, db_path='lookup_db.json'):
-    """Matches detected stars against the geometric database."""
     try:
         with open(db_path, 'r') as f:
             db = json.load(f)
-    except: return None, None, "Database (lookup_db.json) not found."
+    except: return None, None, "Database not found."
     
-    if len(stars) < 4: return None, None, "Need more stars for a match."
+    if len(stars) < 4: return None, None, "Need more stars."
     
     tri = Delaunay(stars)
     matches = {}
@@ -58,31 +55,41 @@ def match_patterns(stars, db_path='lookup_db.json'):
 
 st.set_page_config(page_title="Stargaze AI", page_icon="🌌", layout="wide")
 
-# Custom CSS for the 'Night Sky' look
+# FIX 1: Changed unsafe_allow_code to unsafe_allow_html
 st.markdown("""
     <style>
     .main { background-color: #0e1117; color: white; }
     .stButton>button { border-radius: 20px; background-color: #4A90E2; color: white; }
     </style>
-    """, unsafe_allow_code=True)
+    """, unsafe_allow_html=True)
 
-# Login Credentials
-names = ['Pushkar']
-usernames = ['pushkar']
-passwords = ['stargaze123']
+# Define credentials dictionary for the new Authenticator version
+config = {
+    'credentials': {
+        'usernames': {
+            'pushkar': {
+                'name': 'Pushkar',
+                'password': 'stargaze123' # Use a hashed password in production
+            }
+        }
+    },
+    'cookie': {'expiry_days': 30, 'key': 'stargaze_secret', 'name': 'stargaze_cookie'}
+}
 
-authenticator = stauth.Authenticate(names, usernames, passwords, 
-    'stargaze_cookie', 'signature_key', cookie_expiry_days=30)
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
+)
 
-name, authentication_status, username = authenticator.login('Login', 'main')
+# FIX 2: Updated login method to the new v0.3.x format
+result = authenticator.login(location='main')
 
-# ==========================================
-# PHASE 3: THE PROTECTED APP EXPERIENCE
-# ==========================================
-
-if authentication_status:
+# Handle the result correctly
+if st.session_state["authentication_status"]:
     authenticator.logout('Logout', 'sidebar')
-    st.sidebar.title(f"Welcome, {name} ✨")
+    st.sidebar.title(f"Welcome, {st.session_state['name']} ✨")
     
     st.title("🌌 Stargaze: AI Celestial Mapper")
     
@@ -111,7 +118,7 @@ if authentication_status:
                 else:
                     st.error(status)
 
-elif authentication_status == False:
+elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
-elif authentication_status == None:
+elif st.session_state["authentication_status"] is None:
     st.warning('Please enter your credentials to access the observatory.')
