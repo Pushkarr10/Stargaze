@@ -79,14 +79,15 @@ def welcome_popup():
         st.rerun()
 
 # 3.2: THE CSS VAULT (The Visual Identity)
-st.set_page_config(page_title="Stargaze", page_icon="🌌", layout="wide")
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
+    /* The Main Background with Gradient Overlay */
     .stApp {
-        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
+        background: 
+            linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
+            url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
         background-attachment: fixed;
         background-size: cover;
     }
@@ -131,10 +132,10 @@ st.markdown("""
 
     /* Form and Text Styling */
     [data-testid="stForm"] {
-        background: rgba(0, 0, 0, 0.8) !important;
-        backdrop-filter: blur(20px);
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(15px);
         border-radius: 30px !important;
-        border: 1px solid rgba(74, 144, 226, 0.4) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 30px !important;
         max-width: 450px;
         margin: auto;
@@ -152,7 +153,6 @@ st.markdown("""
         <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">WHERE ART MEETS THE INFINITE</p>
     </div>
     """, unsafe_allow_html=True)
-
 # 3.3: SESSION & PERSISTENCE LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "show_signup" not in st.session_state: st.session_state.show_signup = False
