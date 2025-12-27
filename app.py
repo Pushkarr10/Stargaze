@@ -141,9 +141,31 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Access Denied: Invalid email or password.")
-
+    
 # --- THE MAIN APP EXPERIENCE (Only visible if logged in) ---
 else:
+    @st.dialog("Welcome to the Observatory! 🔭")
+def welcome_popup():
+    st.write("""
+    ### Hey Explorer! 🌌
+    Welcome to **Stargaze AI**, where we turn your blurry night-sky photos into actual maps of the cosmos.
+    
+    **How does it work?**
+    1. **Star Spotting:** Our AI hunts for bright pixels (stars) and ignores the noise.
+    2. **The Barcode:** It looks at the *angles* and *distances* between stars to create a unique geometric fingerprint.
+    3. **The Match:** It compares that fingerprint against our ancient celestial database.
+    
+    *Tip: If the sky looks messy, use the **Sensitivity** slider in the sidebar to clean up the noise!*
+    """)
+    if st.button("Let's Start Mapping!"):
+        st.rerun()
+
+# --- Inside your 'Logged In' logic ---
+if st.session_state.logged_in:
+    # We use a session state 'has_seen_intro' so it only pops up once per login
+    if "has_seen_intro" not in st.session_state:
+        welcome_popup()
+        st.session_state.has_seen_intro = True
     st.sidebar.title(f"🔭 {st.session_state.user['name']}")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
