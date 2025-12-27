@@ -105,24 +105,36 @@ def inject_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
+    html, body, .stApp {{
+        height: 100%;
+    }}
+
     .stApp {{
         {bg}
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
+        position: relative;
+        z-index: 0;
     }}
-    .stApp::before {{
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(circle at center,
-        rgba(0,0,0,0.55) 0%,
-        rgba(0,0,0,0.25) 40%,
-        rgba(255,255,255,0.12) 100%);
-    z-index: -1;
-}}
 
+    /* Bright corners overlay */
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at center,
+            rgba(0,0,0,0.6) 0%,
+            rgba(0,0,0,0.3) 45%,
+            rgba(255,255,255,0.18) 100%);
+        z-index: 0;
+    }}
+
+    /* Header */
     .sky-header {{
+        position: relative;
+        z-index: 2;
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
         padding: 40px 10px;
         text-align: center;
@@ -130,6 +142,7 @@ def inject_css():
         border-radius: 0 0 40px 40px;
         margin-bottom: 30px;
     }}
+
     .sparkle-title {{
         font-family: 'Lobster', cursive !important;
         font-size: clamp(2.5rem, 8vw, 5rem) !important;
@@ -145,6 +158,8 @@ def inject_css():
     }}
 
     [data-testid="stForm"] {{
+        position: relative;
+        z-index: 2;
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(15px);
         border-radius: 30px !important;
@@ -168,7 +183,6 @@ def inject_css():
     </div>
     """, unsafe_allow_html=True)
 
-inject_css()
 
 # 3.3: SESSION & PERSISTENCE LOGIC
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
