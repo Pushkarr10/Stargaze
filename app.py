@@ -209,106 +209,119 @@ else:
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
     
-    # 3.5.1: THE CELESTIAL PORTAL (The "Torn" Switcher)
-# We use custom HTML/CSS for the modern slider because the default one is too bulky.
+# 3.5.1: THE ANCIENT TORN PORTAL
+# We are using high-end CSS for the "VPN" toggle and the "Torn Map" effect.
 
 st.markdown("""
     <style>
-    /* 1. The Modern Minimalist Toggle */
-    .switch-container {
+    /* 1. THE VPN-STYLE TOGGLE (Thick & Smooth) */
+    .stRadio [data-testid="stWidgetLabel"] { display: none; } /* Hide default label */
+    
+    div[role="radiogroup"] {
+        background: #1e1e1e;
+        border: 3px solid #4A90E2;
+        border-radius: 50px;
+        padding: 5px;
         display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 20px;
-        margin: 20px 0;
-        padding: 10px;
+        justify-content: space-around;
+        width: 300px;
+        margin: 0 auto 30px auto;
     }
 
-    /* 2. The "Torn" Layout Container */
-    .portal-frame {
-        display: flex;
-        width: 100%;
-        height: 60vh;
-        border-radius: 20px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    /* 2. THE TORN MAP CONTAINER (Mobile Responsive) */
+    .map-container {
         position: relative;
+        width: 100%;
+        min-height: 500px;
+        display: flex;
+        flex-direction: row;
+        filter: drop-shadow(0px 10px 20px rgba(0,0,0,0.5));
     }
 
-    /* Left Side: Science Description */
-    .pane-left {
+    /* THE LEFT WING (SCIENCE) */
+    .map-wing-left {
         flex: 1;
-        background: rgba(11, 13, 18, 0.8);
-        padding: 40px;
-        border-right: 2px dashed rgba(74, 144, 226, 0.5); /* The "Tear" Line */
-        transition: 0.5s;
+        background: #f4e4bc; /* Parchment Color */
+        color: #1e1e1e;
+        padding: 30px;
+        /* THE JAGGED TEAR: Custom Clip Path */
+        clip-path: polygon(0% 0%, 95% 0%, 100% 12%, 93% 25%, 100% 38%, 92% 52%, 98% 68%, 91% 82%, 100% 100%, 0% 100%);
+        border-right: 1px solid rgba(0,0,0,0.1);
+        margin-right: -5px; /* Pull them together for the tear */
     }
 
-    /* Right Side: Art Description */
-    .pane-right {
+    /* THE RIGHT WING (CREATIVE) */
+    .map-wing-right {
         flex: 1;
-        background: rgba(26, 26, 46, 0.8);
-        padding: 40px;
-        transition: 0.5s;
+        background: #ede0c8; /* Slightly darker parchment */
+        color: #2c1a1a;
+        padding: 30px;
+        /* THE MATCHING ASYMMETRIC TEAR */
+        clip-path: polygon(5% 0%, 100% 0%, 100% 100%, 8% 100%, 2% 85%, 9% 72%, 1% 55%, 10% 40%, 3% 22%, 10% 10%);
+        margin-left: -5px;
     }
 
-    .pane-title {
+    /* TEXT STYLING FOR THE MAP */
+    .map-title {
         font-family: 'Lobster', cursive;
-        font-size: 2.5rem;
-        margin-bottom: 10px;
+        font-size: 2rem;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(0,0,0,0.2);
     }
 
-    .pane-text {
-        font-family: 'Inter', sans-serif;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #cccccc;
+    .map-body {
+        font-family: 'Shadows Into Light', cursive;
+        font-size: 1.3rem;
+        line-height: 1.4;
+    }
+
+    /* MOBILE FIX: Stack the wings on very small screens */
+    @media (max-width: 768px) {
+        .map-container { flex-direction: column; gap: 20px; }
+        .map-wing-left, .map-wing-right { clip-path: none; border-radius: 15px; margin: 0; }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# THE MODERN SLIDER (Refined)
-# We use a horizontal radio as a "mode selector" for a smoother feel
-st.write("---")
+# THE VPN TOGGLE LOGIC
+# Index 0 = Science, 1 = Neutral, 2 = Art
 view_choice = st.radio(
-    " ",
-    ["Science Mode", "Neutral", "Artistic Mode"],
+    "Select Mode",
+    ["Science Hub", "The Observatory", "Creative Gallery"],
     index=1,
     horizontal=True,
     label_visibility="collapsed"
 )
 
-# THE TORN INTERFACE
-if view_choice == "Neutral":
+if view_choice == "The Observatory":
+    # THE TORN MAP UI
     st.markdown(f"""
-        <div class="portal-frame">
-            <div class="pane-left">
-                <h2 class="pane-title" style="color: #4A90E2;">The Blueprint</h2>
-                <p class="pane-text">
-                    <b>Objective Data extraction.</b><br>
-                    Here, we strip away the noise. We find coordinates, calculate angles, 
-                    and verify the geometric fingerprints of the stars. 
-                    Pure mathematical identification.
-                </p>
+        <div class="map-container">
+            <div class="map-wing-left">
+                <h2 class="map-title" style="color: #003366;">📜 The Blueprint</h2>
+                <div class="map-body">
+                    <b>Objective Extraction.</b><br>
+                    Coordinates: [Locked]<br>
+                    Geometric Fingerprints: [Pending]<br><br>
+                    <i>Strip the noise. Find the math. Verify the stars.</i>
+                </div>
             </div>
-            <div class="pane-right">
-                <h2 class="pane-title" style="color: #E0E1DD;">The Canvas</h2>
-                <p class="pane-text">
+            <div class="map-wing-right">
+                <h2 class="map-title" style="color: #660000;">🕯️ The Canvas</h2>
+                <div class="map-body">
                     <b>Subjective Exploration.</b><br>
-                    This is where the stars tell their stories. Extract the emotional 
-                    essence of your capture, add artistic overlays, and 
-                    archive your celestial memories.
-                </p>
+                    Memories: [0 Items]<br>
+                    Emotional Essence: [Active]<br><br>
+                    <i>The stars tell stories. Capture the essence. Build your soul's catalog.</i>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    st.info("💡 Slide the selector to the LEFT to begin analysis, or to the RIGHT to view your gallery.")
-
-elif view_choice == "Science Mode":
+elif view_choice == "Science Hub":
     st.title("🔬 The Science Hub")
-    # This is where your original Star Engine results will show up in "Technical" style
-    
-elif view_choice == "Artistic Mode":
-    st.title("🎨 The Celestial Gallery")
-    # This is where the emotional/creative part will live
+    # ... (Rest of your technical engine)
+
+elif view_choice == "Creative Gallery":
+    st.title("🎨 The Creative Gallery")
+    # ... (Rest of your artistic engine)
