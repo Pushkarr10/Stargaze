@@ -6,8 +6,6 @@ import bcrypt
 import re
 from scipy.spatial import Delaunay
 from supabase import create_client, Client
-from PIL import Image
-import io
 
 # =================================================================
 # 🧬 ZONE 1: THE BACKBONE (Geometric Engine)
@@ -58,37 +56,12 @@ def hash_pass(p): return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
 def check_pass(p, h): return bcrypt.checkpw(p.encode(), h.encode())
 def is_valid_email(email): return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email) is not None
 
-def authenticate_image(uploaded_file):
-    """Check if image has valid EXIF camera metadata"""
-    try:
-        pil_img = Image.open(uploaded_file)
-        exif_data = pil_img._getexif()
-        
-        if exif_data is None:
-            return False, "No camera metadata found. Please upload a photo taken with a camera."
-        
-        # Check for camera-specific EXIF tags
-        camera_tags = [271, 272, 34855]  # Make, Model, ISO
-        has_camera_data = any(tag in exif_data for tag in camera_tags)
-        
-        if has_camera_data:
-            return True, "✅ Verified genuine camera capture"
-        else:
-            return False, "⚠️ Image lacks camera verification. Downloaded images not allowed."
-    except:
-        return False, "⚠️ Could not verify image source."
-
+# =================================================================
+# 🎨 ZONE 3: THE INTERFACE (User Experience)
+# =================================================================
 # =================================================================
 # 🎨 ZONE 3: THE INTERFACE (The Celestial Sanctuary)
 # =================================================================
-
-# PAGE CONFIG
-st.set_page_config(
-    page_title="Stargaze",
-    page_icon="🌌",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # 3.1: THE DIALOG (Onboarding)
 @st.dialog("Welcome to the Observatory! 🔭")
@@ -98,10 +71,8 @@ def welcome_popup():
     Welcome to **Stargaze**. This is the start to your sparkling experience ✨✨✨.
     
     **Your Journey:**
-    - Slide to the **LEFT** for the Science Hub 🔬
-    - Slide to the **RIGHT** for the Canvas Mode 🎨
-    
-    Upload a photo taken with **your camera** to detect constellations and unlock achievements!
+    - Slide the Lens **LEFT** for the Science Hub 🔬
+    - Slide the Lens **RIGHT** for the Creative Gallery 🎨
     """)
     if st.button("Let's Start Mapping!"):
         st.session_state.has_seen_intro = True
@@ -112,27 +83,15 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap');
 
-    /* ===== LOGIN PAGE BACKGROUND (Van Gogh) ===== */
-    .login-page {
+    /* The Main Background with Gradient Overlay */
+    .stApp {
         background: 
             linear-gradient(180deg, rgba(50, 50, 50, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%),
             url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
         background-attachment: fixed;
         background-size: cover;
-        background-position: center;
     }
 
-    /* ===== DASHBOARD BACKGROUND (Cosmic Nebula) ===== */
-    .dashboard-page {
-        background: 
-            radial-gradient(ellipse at center, rgba(100, 50, 150, 0.4) 0%, rgba(0, 0, 0, 0.95) 100%),
-            url("https://agi-prod-file-upload-public-main-use1.s3.amazonaws.com/02b7c172-1771-423e-9d66-083a83b9031e");
-        background-attachment: fixed;
-        background-size: cover;
-        background-position: center;
-    }
-
-    /* LOGIN HEADER */
     .sky-header {
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
         padding: 40px 10px;
@@ -150,7 +109,6 @@ st.markdown("""
         text-shadow: 0 0 10px #fff, 0 0 20px #4A90E2;
         animation: title-glow 2s ease-in-out infinite alternate;
         white-space: nowrap;
-        margin: 0;
     }
 
     @keyframes title-glow {
@@ -172,7 +130,7 @@ st.markdown("""
         100% { opacity: 0; }
     }
 
-    /* ===== LOGIN/SIGNUP FORMS ===== */
+    /* Form and Text Styling */
     [data-testid="stForm"] {
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(15px);
@@ -187,182 +145,26 @@ st.markdown("""
         font-family: 'Inter', sans-serif !important;
         color: #ffffff !important;
     }
-
-    /* ===== GLOWING ORB SLIDER (MOBILE OPTIMIZED) ===== */
-    .slider-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 30px 0;
-        padding: 0 10px;
-    }
-
-    .slider-label-left, .slider-label-right {
-        font-family: 'Inter', sans-serif;
-        font-weight: 700;
-        font-size: clamp(0.9rem, 2.5vw, 1.2rem);
-        white-space: nowrap;
-        text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
-    }
-
-    .slider-label-left {
-        color: #4A90E2;
-        margin-right: 15px;
-    }
-
-    .slider-label-right {
-        color: #E24A8A;
-        margin-left: 15px;
-    }
-
-    /* Custom slider styling */
-    input[type="range"] {
-        width: 100%;
-        max-width: 300px;
-        height: 12px;
-        border-radius: 10px;
-        background: linear-gradient(to right, rgba(74, 144, 226, 0.3), rgba(226, 74, 138, 0.3));
-        outline: none;
-        -webkit-appearance: none;
-        appearance: none;
-    }
-
-    /* Thumb styling */
-    input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #ffffff, #4A90E2);
-        cursor: pointer;
-        box-shadow: 0 0 20px rgba(74, 144, 226, 0.8), 0 0 40px rgba(74, 144, 226, 0.4);
-        transition: all 0.2s ease;
-    }
-
-    input[type="range"]::-webkit-slider-thumb:hover {
-        box-shadow: 0 0 30px rgba(74, 144, 226, 1), 0 0 60px rgba(74, 144, 226, 0.6);
-        transform: scale(1.15);
-    }
-
-    input[type="range"]::-moz-range-thumb {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #ffffff, #4A90E2);
-        cursor: pointer;
-        box-shadow: 0 0 20px rgba(74, 144, 226, 0.8), 0 0 40px rgba(74, 144, 226, 0.4);
-        border: none;
-        transition: all 0.2s ease;
-    }
-
-    input[type="range"]::-moz-range-thumb:hover {
-        box-shadow: 0 0 30px rgba(74, 144, 226, 1), 0 0 60px rgba(74, 144, 226, 0.6);
-        transform: scale(1.15);
-    }
-
-    /* ===== DASHBOARD CONTENT AREA ===== */
-    .dashboard-container {
-        background: rgba(20, 20, 40, 0.6);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        border: 1px solid rgba(74, 144, 226, 0.2);
-        padding: 20px;
-        margin-top: 30px;
-    }
-
-    .content-section {
-        display: none;
-    }
-
-    .content-section.active {
-        display: block;
-        animation: fadeIn 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    /* ===== RESPONSIVE TEXT ===== */
-    h1, h2, h3 {
-        font-family: 'Lobster', cursive;
-        text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
-    }
-
-    h1 { font-size: clamp(2rem, 6vw, 3.5rem); }
-    h2 { font-size: clamp(1.5rem, 5vw, 2.5rem); }
-    h3 { font-size: clamp(1.2rem, 4vw, 1.8rem); }
-
-    p, label, .stButton {
-        font-family: 'Inter', sans-serif;
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-        color: #ffffff;
-    }
-
-    /* ===== FILE UPLOADER STYLING ===== */
-    [data-testid="stFileUploadDropzone"] {
-        background: rgba(74, 144, 226, 0.1) !important;
-        border: 2px dashed rgba(74, 144, 226, 0.5) !important;
-        border-radius: 15px;
-    }
-
-    /* ===== MOBILE OPTIMIZATION ===== */
-    @media (max-width: 768px) {
-        .sky-header {
-            padding: 20px 10px;
-            margin-bottom: 20px;
-        }
-
-        .slider-container {
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .slider-label-left, .slider-label-right {
-            margin: 0;
-        }
-
-        input[type="range"] {
-            max-width: 100%;
-        }
-
-        .dashboard-container {
-            padding: 15px;
-        }
-    }
     </style>
-    """, unsafe_allow_html=True)
-
-# 3.3: SESSION & PERSISTENCE LOGIC
-if "logged_in" not in st.session_state: 
-    st.session_state.logged_in = False
-if "show_signup" not in st.session_state: 
-    st.session_state.show_signup = False
-if "lens_position" not in st.session_state:
-    st.session_state.lens_position = 50  # 0-33 = Science, 34-66 = Observatory, 67-100 = Canvas
-
-if st.session_state.logged_in:
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col3:
-        if st.button("✨ Leave Observatory", key="logout_btn"):
-            st.session_state.logged_in = False
-            st.session_state.has_seen_intro = False
-            st.rerun()
-
-# 3.4: THE ACCESS GATE (Login / Signup Switch)
-if not st.session_state.logged_in:
-    # APPLY VAN GOGH BACKGROUND TO LOGIN PAGE
-    st.markdown('<div class="login-page">', unsafe_allow_html=True)
     
-    st.markdown("""
     <div class="sky-header">
         <div class="shooting-star"></div>
         <h1 class="sparkle-title">Stargaze</h1>
         <p style="font-family: 'Inter', sans-serif; letter-spacing: 2px; font-size: 0.9rem;">WHERE ART MEETS THE INFINITE</p>
     </div>
     """, unsafe_allow_html=True)
+# 3.3: SESSION & PERSISTENCE LOGIC
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "show_signup" not in st.session_state: st.session_state.show_signup = False
+
+if st.session_state.logged_in:
+    if st.sidebar.button("✨ Leave Observatory"):
+        st.session_state.logged_in = False
+        st.session_state.has_seen_intro = False
+        st.rerun()
+
+# 3.4: THE ACCESS GATE (Login / Signup Switch)
+if not st.session_state.logged_in:
     
     if st.session_state.show_signup:
         # --- 3.4.1: SIGN UP FORM ---
@@ -399,126 +201,124 @@ if not st.session_state.logged_in:
         if st.button("New here? Create an Account"):
             st.session_state.show_signup = True
             st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # 3.5: THE MAIN OBSERVATORY (Logged-In State)
 else:
-    # APPLY COSMIC NEBULA BACKGROUND TO DASHBOARD
-    st.markdown('<div class="dashboard-page">', unsafe_allow_html=True)
-    
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
+# 3.5.1: THE ANCIENT TORN PORTAL (SVG Rendered)
 
-    # ===== THE GLOWING ORB SLIDER =====
-    st.markdown('<div class="slider-container">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
+# This block creates the physical "Tear" using coordinate-based SVG paths.
+st.markdown("""
+    <style>
+    /* 1. THE VPN-STYLE SWITCH (Thick, Smooth, Modern) */
+    .stRadio > div {
+        background: #1a1a1a !important;
+        border: 4px solid #4A90E2 !important;
+        border-radius: 60px !important;
+        padding: 8px 20px !important;
+        max-width: 400px;
+        margin: 0 auto 40px auto;
+        box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+    }
     
-    with col1:
-        st.markdown('<div class="slider-label-left">🔬 SCIENCE</div>', unsafe_allow_html=True)
-    
-    with col2:
-        lens_position = st.slider(
-            "Lens Position",
-            min_value=0,
-            max_value=100,
-            value=st.session_state.lens_position,
-            step=1,
-            label_visibility="collapsed"
-        )
-        st.session_state.lens_position = lens_position
-    
-    with col3:
-        st.markdown('<div class="slider-label-right">🎨 CANVAS</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    /* 2. THE TORN MAP CONTAINER */
+    .tear-wrapper {
+        display: flex;
+        width: 100%;
+        min-height: 500px;
+        position: relative;
+        overflow: visible;
+        filter: drop-shadow(0px 15px 30px rgba(0,0,0,0.7));
+    }
 
-    # ===== DETERMINE MODE BASED ON SLIDER =====
-    if lens_position <= 33:
-        current_mode = "Science Hub"
-    elif lens_position <= 66:
-        current_mode = "The Observatory"
-    else:
-        current_mode = "Canvas Mode"
+    /* THE SCIENCE WING (LEFT) */
+    .wing-science {
+        flex: 1;
+        background-color: #f4e4bc; /* Aged Parchment */
+        background-image: radial-gradient(rgba(0,0,0,0.1) 1px, transparent 1px);
+        background-size: 25px 25px; /* Subtle graph/blueprint pattern */
+        padding: 45px;
+        color: #1a1a1a;
+        /* THE JAGGED CLIP-PATH */
+        clip-path: polygon(0% 0%, 96% 0%, 100% 15%, 92% 30%, 100% 45%, 93% 60%, 98% 75%, 91% 90%, 100% 100%, 0% 100%);
+        border-right: 1px solid rgba(0,0,0,0.1);
+        z-index: 2;
+    }
 
-    # ===== CONTENT SECTIONS =====
-    st.markdown(f'<div class="dashboard-container">', unsafe_allow_html=True)
+    /* THE ART WING (RIGHT) */
+    .wing-art {
+        flex: 1;
+        background-color: #ede0c8; /* Slightly darker vellum */
+        padding: 45px;
+        color: #2c1a1a;
+        margin-left: -35px; /* Overlap creates the 'rip' depth */
+        /* ASYMMETRIC MATCHING TEAR */
+        clip-path: polygon(6% 0%, 100% 0%, 100% 100%, 8% 100%, 2% 85%, 10% 70%, 1% 55%, 9% 40%, 3% 25%, 11% 10%);
+        z-index: 1;
+    }
 
-    if current_mode == "Science Hub":
-        st.markdown(f'<h2 style="color: #4A90E2;">🔬 Science Hub</h2>', unsafe_allow_html=True)
-        st.markdown("""
-        Upload a night sky photo taken with **your camera** to:
-        - Detect and identify constellations
-        - Extract star coordinates and magnitudes
-        - Unlock astronomical achievements
-        """)
-        
-        uploaded_file = st.file_uploader("📸 Upload your night sky image", type=["jpg", "jpeg", "png"])
-        
-        if uploaded_file:
-            # EXIF Verification
-            is_verified, msg = authenticate_image(uploaded_file)
-            st.info(msg)
-            
-            if is_verified:
-                col1, col2 = st.columns([1, 1])
-                
-                with col1:
-                    st.write("**Original Image:**")
-                    st.image(uploaded_file, use_column_width=True)
-                
-                with col2:
-                    if st.button("🔍 Analyze Image", key="analyze_btn"):
-                        with st.spinner("Scanning the heavens..."):
-                            img_bytes = uploaded_file.read()
-                            uploaded_file.seek(0)
-                            
-                            stars, processed_img = stargaze_engine(img_bytes, thresh_val=150, min_area=5)
-                            constellation, simplices, msg = match_patterns(stars)
-                            
-                            st.success(msg)
-                            st.markdown(f"### 🌟 Constellation Identified: **{constellation}**")
-                            
-                            # Draw constellation
-                            if simplices is not None:
-                                output_img = processed_img.copy()
-                                for simplex in simplices:
-                                    pts = stars[simplex].astype(int)
-                                    cv2.polylines(output_img, [pts], True, (0, 255, 255), 2)
-                                
-                                st.image(output_img, use_column_width=True, caption="Detected Star Pattern")
-                            
-                            st.markdown(f"""
-                            **Detection Data:**
-                            - Stars Detected: {len(stars)}
-                            - Confidence: High
-                            - Status: ✅ Achievement Unlocked
-                            """)
+    /* TYPOGRAPHY FOR THE MAP */
+    .map-header {
+        font-family: 'Lobster', cursive;
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        border-bottom: 2px solid rgba(0,0,0,0.1);
+    }
 
-    elif current_mode == "The Observatory":
-        st.markdown(f'<h2 style="color: #8B5CF6;">🔭 The Observatory</h2>', unsafe_allow_html=True)
-        st.markdown("""
-        The neutral zone where **Science meets Wonder**.
-        
-        Slide left to analyze constellations with precision.
-        Slide right to capture your emotional connection to the stars.
-        """)
-        
-        st.info("📌 **Pro Tip:** This is your portal between objective observation and subjective experience.")
+    .map-text {
+        font-family: 'Shadows Into Light', cursive;
+        font-size: 1.5rem;
+        line-height: 1.4;
+    }
 
-    elif current_mode == "Canvas Mode":
-        st.markdown(f'<h2 style="color: #E24A8A;">🎨 Canvas Mode</h2>', unsafe_allow_html=True)
-        st.markdown("""
-        Record the **emotional essence** of your observations.
-        
-        - 📝 Journal your stargazing moments
-        - 🎭 Attach feelings and memories
-        - 🌌 Build your cosmic narrative
-        """)
-        
-        st.info("🎨 **Coming Soon:** Full creative journaling and artistic features will be available here.")
+    /* MOBILE RESPONSIVENESS: Stacks wings so they don't distort */
+    @media (max-width: 800px) {
+        .tear-wrapper { flex-direction: column; }
+        .wing-science, .wing-art { clip-path: none !important; margin: 10px 0; border-radius: 20px; }
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# 3.5.2: THE PORTAL LOGIC
+mode_select = st.radio(
+    "Choose Your Lens",
+    ["Science Hub", "The Observatory", "Creative Gallery"],
+    index=1,
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+if mode_select == "The Observatory":
+    st.markdown("""
+        <div class="tear-wrapper">
+            <div class="wing-science">
+                <h2 class="map-header" style="color: #003366;">📜 The Blueprint</h2>
+                <div class="map-text">
+                    <b>MODE: OBJECTIVE DATA</b><br><br>
+                    Coordinates: [Scanning...]<br>
+                    Geometric Fingerprints: [Pending]<br><br>
+                    <i>Strip away the color. Find the math. Verify the stars.</i>
+                </div>
+            </div>
+            <div class="wing-art">
+                <h2 class="map-header" style="color: #660000;">🕯️ The Canvas</h2>
+                <div class="map-text">
+                    <b>MODE: SUBJECTIVE WONDER</b><br><br>
+                    Memories: [0 Found]<br>
+                    Emotional Essence: [Active]<br><br>
+                    <i>The stars are not just pixels. Capture the story. Build your soul's catalog.</i>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+elif mode_select == "Science Hub":
+    st.title("🔬 Science Terminal")
+    # Technical logic...
+
+elif mode_select == "Creative Gallery":
+    st.title("🎨 Celestial Gallery")
+    # Artistic logic...
