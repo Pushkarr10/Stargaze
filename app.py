@@ -145,20 +145,6 @@ def inject_css():
         from {{ text-shadow: 0 0 10px #fff; }}
         to {{ text-shadow: 0 0 20px #fff, 0 0 30px #4A90E2; }}
     }}
-    .shooting-star {(
-        position: absolute;
-        top: 0; left: 80%;
-        width: 3px; height: 3px;
-        background: white;
-        animation: shoot 5s linear infinite;
-    })
-    
-    @keyframes shoot {(
-        0% { transform: translateX(0) translateY(0); opacity: 1; }
-        15% { transform: translateX(-300px) translateY(300px); opacity: 0; }
-        100% { opacity: 0; }
-    })
-
     [data-testid="stForm"] {{
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(15px);
