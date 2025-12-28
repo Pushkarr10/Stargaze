@@ -240,6 +240,86 @@ else:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
+    # 3.5: MAIN OBSERVATORY (Logged-In State)
+else:
+    if "has_seen_intro" not in st.session_state:
+        welcome_popup()
+
+    st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
+    if st.sidebar.button("✨ Leave Observatory"):
+        st.session_state.logged_in = False
+        st.rerun()
+    
+    # THE MODERN ORB SLIDER
+    mode = st.select_slider(
+        "Calibration", 
+        options=["Science", "Neutral", "Gallery"], 
+        value="Neutral", 
+        label_visibility="collapsed"
+    )
+
+    # 3.5.1: NEUTRAL MODE (The Split Vision)
+    if mode == "Neutral":
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+                <div class="glass-pane">
+                    <h2 style="font-family:Lobster; color:#4A90E2;">The Blueprint</h2>
+                    <p><b>Objective Extraction.</b><br><br>
+                    Strip away the color. Find the math. Verify the coordinates and 
+                    geometric fingerprints of the stars. 
+                    Pure mathematical identification.</p>
+                </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("""
+                <div class="glass-pane">
+                    <h2 style="font-family:Lobster; color:#E0E1DD;">The Canvas</h2>
+                    <p><b>Subjective Wonder.</b><br><br>
+                    The stars are more than pixels. Extract the emotional essence 
+                    of your capture, add artistic overlays, and archive your 
+                    celestial memories.</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # 3.5.2: SCIENCE MODE (The Functional Engine)
+    elif mode == "Science":
+        st.markdown("<h2 style='font-family:Lobster;'>🔬 Science Terminal</h2>", unsafe_allow_html=True)
+        
+        # The restored File Uploader
+        uploaded = st.file_uploader("Upload Star Capture", type=['jpg', 'jpeg', 'png'])
+        
+        if uploaded:
+            # 1. Security Check (EXIF)
+            valid, msg = authenticate_image(uploaded)
+            if not valid:
+                st.error(msg)
+            else:
+                st.success(msg)
+                
+                # 2. Backbone Processing
+                with st.spinner("Decoding celestial coordinates..."):
+                    # We use .getvalue() to read the bytes for OpenCV
+                    stars, img = stargaze_engine(uploaded.getvalue(), 120, 4)
+                    winner, geom, status = match_patterns(stars)
+                    
+                    # 3. Display Results
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Stars Detected", len(stars))
+                        if winner: 
+                            st.success(f"Pattern Identified: **{winner}**")
+                        else: 
+                            st.warning(f"Status: {status}")
+                    
+                    with col_b:
+                        # Convert BGR to RGB for Streamlit display
+                        st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Processed Analysis", use_container_width=True)
+
+    # 3.5.3: GALLERY MODE (Placeholder)
+    else:
+        st.markdown("<h2 style='font-family:Lobster;'>🎨 Celestial Gallery</h2>", unsafe_allow_html=True)
+        st.info("Your personal constellation catalog is coming soon...")
 # 3.5.1: THE ANCIENT TORN PORTAL (SVG Rendered)
 
 # This block creates the physical "Tear" using coordinate-based SVG paths.
