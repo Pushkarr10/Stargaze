@@ -117,9 +117,9 @@ def inject_css():
     position: fixed;
     inset: 0;
     background: radial-gradient(circle at center,
-        rgba(0,0,0,0.55) 0%,
-        rgba(0,0,0,0.25) 40%,
-        rgba(255,255,255,0.12) 100%);
+    rgba(0,0,0,0.30) 0%,
+    rgba(0,0,0,0.12) 45%,
+    rgba(255,255,255,0.28) 100%);
     z-index: -1;
     }}
 
