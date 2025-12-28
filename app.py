@@ -226,8 +226,8 @@ else:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-    # Added unique key to prevent duplicate element errors
-    if st.sidebar.button("✨ Leave Observatory", key="logout_btn"):
+    # Fixed unique key to prevent DuplicateElementId error
+    if st.sidebar.button("✨ Leave Observatory", key="logout_btn_main"):
         st.session_state.logged_in = False
         st.rerun()
     
