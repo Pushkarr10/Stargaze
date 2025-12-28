@@ -220,12 +220,14 @@ if not st.session_state.logged_in:
             st.session_state.show_signup = True
             st.rerun()
 
-# 3.5: THE MAIN OBSERVATORY (Logged-In State)
+# 3.5: MAIN OBSERVATORY
 else:
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
+
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-    if st.sidebar.button("✨ Leave Observatory"):
+    # Added unique key to prevent duplicate element errors
+    if st.sidebar.button("✨ Leave Observatory", key="logout_btn"):
         st.session_state.logged_in = False
         st.rerun()
     
@@ -237,7 +239,6 @@ else:
         label_visibility="collapsed"
     )
 
-    # 3.5.1: NEUTRAL MODE (The Split Vision)
     if mode == "Neutral":
         col1, col2 = st.columns(2)
         with col1:
@@ -261,44 +262,25 @@ else:
                 </div>
             """, unsafe_allow_html=True)
 
-    # 3.5.2: SCIENCE MODE (The Functional Engine)
     elif mode == "Science":
         st.markdown("<h2 style='font-family:Lobster;'>🔬 Science Terminal</h2>", unsafe_allow_html=True)
-        
-        # The restored File Uploader
         uploaded = st.file_uploader("Upload Star Capture", type=['jpg', 'jpeg', 'png'])
         
         if uploaded:
-            # 1. Security Check (EXIF)
             valid, msg = authenticate_image(uploaded)
             if not valid:
                 st.error(msg)
             else:
                 st.success(msg)
-                
-                # 2. Backbone Processing
                 with st.spinner("Decoding celestial coordinates..."):
-                    # We use .getvalue() to read the bytes for OpenCV
                     stars, img = stargaze_engine(uploaded.getvalue(), 120, 4)
                     winner, geom, status = match_patterns(stars)
                     
-                    # 3. Display Results
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        st.metric("Stars Detected", len(stars))
-                        if winner: 
-                            st.success(f"Pattern Identified: **{winner}**")
-                        else: 
-                            st.warning(f"Status: {status}")
-                    
-                    with col_b:
-                        # Convert BGR to RGB for Streamlit display
-                        st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Processed Analysis", use_container_width=True)
+                    st.write(f"**Stars Detected:** {len(stars)}")
+                    if winner: st.success(f"Pattern Identified: {winner}")
+                    else: st.info(status)
+                    st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
 
-    # 3.5.3: GALLERY MODE (Placeholder)
     else:
         st.markdown("<h2 style='font-family:Lobster;'>🎨 Celestial Gallery</h2>", unsafe_allow_html=True)
         st.info("Your personal constellation catalog is coming soon...")
-# 3.5.1: THE ANCIENT TORN PORTAL (SVG Rendered)
-
-# This block creates the physical "Tear" using coordinate-based SVG paths.
