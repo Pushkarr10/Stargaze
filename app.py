@@ -17,22 +17,15 @@ def get_base64_image(path):
         with open(path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
     except FileNotFoundError:
-        return "" # Handle missing bg gracefully
+        return "" 
 
-# Placeholder for background - ensure you have this file or the code will use the fallback URL
 DASHBOARD_BG = get_base64_image("dashboard_bg.png")
 
 def authenticate_image(uploaded_file):
-    """
-    Validates the uploaded image before processing.
-    """
     if uploaded_file is None:
         return False, "No signal detected."
-    
-    # Check file size (e.g., limit to 10MB)
     if uploaded_file.size > 10 * 1024 * 1024:
         return False, "Signal too strong (File > 10MB). Please compress."
-        
     return True, "Signal locked. Telemetry received."
 
 def stargaze_engine(img_bytes, thresh_val, min_area):
@@ -61,7 +54,6 @@ def match_patterns(stars, db_path='lookup_db.json'):
     for simplex in tri.simplices:
         p1, p2, p3 = stars[simplex]
         side_lens = sorted([np.linalg.norm(p1-p2), np.linalg.norm(p2-p3), np.linalg.norm(p3-p1)])
-        # Avoid division by zero
         if side_lens[2] == 0: continue
         
         barcode = [round(side_lens[0]/side_lens[2], 2), round(side_lens[1]/side_lens[2], 2)]
@@ -75,14 +67,24 @@ def match_patterns(stars, db_path='lookup_db.json'):
     return max(matches, key=matches.get), valid_simplices, "Pattern Identified."
 
 # =================================================================
-# 🧠 ZONE 2: THE BRAIN (Database & Security)
+# 🧠 ZONE 2: THE BRAIN (Database & Security - FIXED)
 # =================================================================
 
-# ERROR HANDLING FOR SECRETS
-try:
-    supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-except Exception as e:
-    st.error("Connection to Motherbase (Supabase) failed. Check secrets.")
+# We use @st.cache_resource to keep the connection alive
+@st.cache_resource
+def init_supabase():
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        return None
+
+supabase = init_supabase()
+
+# If connection failed completely
+if supabase is None:
+    st.error("🚨 Critical System Failure: Unable to connect to Supabase. Check your .streamlit/secrets.toml file.")
     st.stop()
 
 def hash_pass(p): return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
@@ -108,7 +110,7 @@ def welcome_popup():
         st.session_state.has_seen_intro = True
         st.rerun()
 
-# 3.2: THE CSS VAULT (Clean & Conditional)
+# 3.2: THE CSS VAULT
 def inject_css():
     if st.session_state.get("logged_in", False):
         bg = f"""
@@ -136,7 +138,6 @@ def inject_css():
         background-position: center;
     }}
 
-    /* SKY HEADER */
     .sky-header {{
         background: linear-gradient(180deg, #000000 0%, #060b26 70%, #0c1445 100%);
         padding: 40px 10px;
@@ -160,7 +161,6 @@ def inject_css():
         to {{ text-shadow: 0 0 25px #fff, 0 0 40px #4A90E2; opacity: 1; }}
     }}
 
-    /* FORM STYLING */
     [data-testid="stForm"] {{
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(15px);
@@ -171,7 +171,6 @@ def inject_css():
         margin: auto;
     }}
 
-    /* GLASS PANE CARDS (NEW) */
     .glass-pane {{
         background: rgba(20, 20, 35, 0.6);
         backdrop-filter: blur(12px);
@@ -206,19 +205,14 @@ def inject_css():
 
 inject_css()
 
-# 3.3: SESSION & PERSISTENCE LOGIC
+# 3.3: SESSION & PERSISTENCE
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "show_signup" not in st.session_state: st.session_state.show_signup = False
 
-if st.session_state.logged_in:
-    # Logout logic is handled in the sidebar now to avoid clutter
-    pass
-
-# 3.4: THE ACCESS GATE (Login / Signup Switch)
+# 3.4: THE ACCESS GATE
 if not st.session_state.logged_in:
     
     if st.session_state.show_signup:
-        # --- 3.4.1: SIGN UP FORM ---
         with st.form("reg"):
             st.write("### ✨ Join the Observatory")
             email = st.text_input("Email Address")
@@ -241,21 +235,21 @@ if not st.session_state.logged_in:
             st.rerun()
 
     else:
-        # --- 3.4.2: LOGIN FORM ---
         with st.form("log"):
             st.write("### ✨ Welcome Back")
             u = st.text_input("Email")
             p = st.text_input("Password", type="password")
             if st.form_submit_button("Open the Skies"):
                 try:
+                    # Using the cached 'supabase' object
                     res = supabase.table("users").select("*").eq("username", u).execute()
                     if res.data and check_pass(p, res.data[0]['password_hash']):
                         st.session_state.logged_in = True
                         st.session_state.user = res.data[0]
                         st.rerun()
-                    else: st.error("Access Denied.")
-                except:
-                    st.error("Database connection error.")
+                    else: st.error("Access Denied: Incorrect Coordinates.")
+                except Exception as e:
+                    st.error(f"Network error: {str(e)}")
         
         if st.button("New Recruit? Sign Up"):
             st.session_state.show_signup = True
@@ -272,7 +266,6 @@ else:
         st.session_state.has_seen_intro = False
         st.rerun()
     
-    # THE MODERN ORB SLIDER
     mode = st.select_slider(
         "Calibration", 
         options=["Science", "Neutral", "Gallery"], 
@@ -280,11 +273,8 @@ else:
         label_visibility="collapsed"
     )
 
-    # =========================================================
-    # 🆕 IMPROVED CENTER CONTENT (NEUTRAL MODE)
-    # =========================================================
     if mode == "Neutral":
-        st.markdown("<br>", unsafe_allow_html=True) # Spacer
+        st.markdown("<br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -315,17 +305,12 @@ else:
                 </div>
             """, unsafe_allow_html=True)
 
-    # =========================================================
-    # SCIENCE TERMINAL
-    # =========================================================
     elif mode == "Science":
         st.markdown("<h2 style='font-family:Lobster; text-align:center;'>🔬 Science Terminal</h2>", unsafe_allow_html=True)
         uploaded = st.file_uploader("Upload Star Capture", type=['jpg', 'jpeg', 'png'])
         
         if uploaded:
-            # THIS FUNCTION WAS MISSING PREVIOUSLY
             valid, msg = authenticate_image(uploaded) 
-            
             if not valid:
                 st.error(msg)
             else:
@@ -342,12 +327,8 @@ else:
                         else: 
                             st.warning(status)
                     with col_res2:
-                        # Convert BGR to RGB for Streamlit display
                         st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Processed Telemetry", use_column_width=True)
 
-    # =========================================================
-    # GALLERY TERMINAL
-    # =========================================================
     else:
         st.markdown("<h2 style='font-family:Lobster; text-align:center;'>🎨 The Archive</h2>", unsafe_allow_html=True)
         st.info("Accessing long-term storage... (Feature arriving in next update)")
