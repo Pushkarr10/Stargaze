@@ -224,12 +224,6 @@ if not st.session_state.logged_in:
 else:
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
-
-    st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-
-    if "has_seen_intro" not in st.session_state:
-        welcome_popup()
-
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
     if st.sidebar.button("✨ Leave Observatory"):
         st.session_state.logged_in = False
