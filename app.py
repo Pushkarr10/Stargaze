@@ -226,8 +226,7 @@ else:
         welcome_popup()
 
     st.sidebar.markdown(f"## {st.session_state.user['name']} ✨")
-    # 3.5: MAIN OBSERVATORY (Logged-In State)
-else:
+
     if "has_seen_intro" not in st.session_state:
         welcome_popup()
 
