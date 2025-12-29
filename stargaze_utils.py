@@ -157,6 +157,7 @@ def generate_observatory_deck():
     return (x_floor, y_floor, z_floor), (x_rail, y_rail, z_grid_rail)
     
 # In stargaze_utils.py
+# In stargaze_utils.py
 
 def create_3d_sphere_chart(visible_stars):
     # --- 1. CONVERT STARS TO 3D ---
@@ -164,7 +165,6 @@ def create_3d_sphere_chart(visible_stars):
     az_rad = np.radians(visible_stars['azimuth'])
     r_sphere = 100 
     
-    # Standard mapping: North=+Y, East=+X
     x = r_sphere * np.cos(alt_rad) * np.sin(az_rad)
     y = r_sphere * np.cos(alt_rad) * np.cos(az_rad)
     z = r_sphere * np.sin(alt_rad)
@@ -174,16 +174,16 @@ def create_3d_sphere_chart(visible_stars):
     # --- 2. ADD THE OBSERVATORY DECK ---
     (x_floor, y_floor, z_floor), (x_rail, y_rail, z_rail) = generate_observatory_deck()
     
-    # Part A: The Floor
+    # The Floor (Clean White/Grey)
     fig.add_trace(go.Surface(
         x=x_floor, y=y_floor, z=z_floor,
-        colorscale=[[0, '#e0e0e0'], [1, '#909090']], # White/Grey Floor
+        colorscale=[[0, '#e0e0e0'], [1, '#909090']], 
         showscale=False, opacity=1.0,
         name='Deck Floor', hoverinfo='skip',
         lighting=dict(ambient=0.4, diffuse=0.5, roughness=0.9, specular=0.1)
     ))
 
-    # Part B: The Railing
+    # The Railing (Horizon Wall)
     fig.add_trace(go.Surface(
         x=x_rail, y=y_rail, z=z_rail,
         colorscale=[[0, '#00d2ff'], [1, '#000510']], 
@@ -191,40 +191,23 @@ def create_3d_sphere_chart(visible_stars):
         name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # --- 3. ADD THE COMPASS (NEW!) 🧭 ---
-    # We draw lines on the floor (-1.9 height so they sit just above z=-2)
-    # North (+Y), South (-Y), East (+X), West (-X)
+    # --- 3. CLEAN COMPASS (Initials Only) 🧭 ---
+    # No lines, just floating letters at the 4 cardinal points
     
-    # 1. The Crosshair Lines
+    # We place them at Radius 90 (near the edge)
     fig.add_trace(go.Scatter3d(
-        x=[0, 0, None, -90, 90],    # Line 1: S->N, Break, Line 2: W->E
-        y=[-90, 90, None, 0, 0], 
-        z=[-1.9, -1.9, None, -1.9, -1.9], 
-        mode='lines',
-        line=dict(color='#444', width=5), # Dark Grey Compass Lines
-        hoverinfo='skip',
-        name='Compass Lines'
-    ))
-
-    # 2. The Text Labels (N, S, E, W)
-    fig.add_trace(go.Scatter3d(
-        x=[0, 90, 0, -90],  # Coordinates for N, E, S, W
-        y=[95, 0, -95, 0],  # Pushed slightly to the edge
-        z=[-1.5, -1.5, -1.5, -1.5], # Float slightly higher
+        x=[0, 90, 0, -90],  # N, E, S, W
+        y=[90, 0, -90, 0], 
+        z=[-1.5, -1.5, -1.5, -1.5], # Float just above floor
         mode='text',
         text=["<b>N</b>", "<b>E</b>", "<b>S</b>", "<b>W</b>"],
-        textfont=dict(color='#000510', size=25, family="Arial Black"), # Big bold letters
+        textfont=dict(
+            color=['#ff3333', '#000510', '#000510', '#000510'], # Red North, Black others
+            size=30, 
+            family="Arial Black"
+        ),
         hoverinfo='skip',
-        name='Compass Labels'
-    ))
-
-    # 3. North Indicator Arrow (A Red Tip for North)
-    fig.add_trace(go.Scatter3d(
-        x=[0], y=[88], z=[-1.9],
-        mode='markers+text',
-        marker=dict(symbol='diamond', size=15, color='red'), # Red Diamond pointing North
-        hoverinfo='skip',
-        name='North'
+        name='Compass'
     ))
 
     # --- 4. ADD STARS ---
@@ -247,7 +230,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Observer'
     ))
 
-    # --- 6. STYLE ---
+    # --- 6. STYLE & CONTROLS ---
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
@@ -255,7 +238,13 @@ def create_3d_sphere_chart(visible_stars):
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
-            camera=dict(eye=dict(x=0.1, y=-0.1, z=0.1)) # Start facing North-ish
+            # 'orbit' feels slightly smoother than 'turntable', 
+            # though it won't invert the axis (Plotly limitation).
+            dragmode="orbit", 
+            camera=dict(
+                eye=dict(x=0.1, y=-0.1, z=0.1), # Initial view facing North
+                up=dict(x=0, y=0, z=1) # Lock Z as "Up"
+            )
         ),
         showlegend=False,
         margin=dict(l=0, r=0, b=0, t=0),
