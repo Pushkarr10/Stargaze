@@ -135,25 +135,40 @@ def create_star_chart(visible_stars):
 
 # In stargaze_utils.py
 
+# In stargaze_utils.py
+
 def generate_terrain():
-    # 1. Create a grid (The ground)
-    # We make a 50x50 grid covering an area of 100x100 units
-    x = np.linspace(-50, 50, 50)
-    y = np.linspace(-50, 50, 50)
-    x_grid, y_grid = np.meshgrid(x, y)
+    # 1. Expand Grid to match Sphere Radius (100)
+    # We use 100 points for smoother detail
+    xy_range = np.linspace(-100, 100, 100)
+    x_grid, y_grid = np.meshgrid(xy_range, xy_range)
     
-    # 2. Generate Height (The Mountains)
-    # We use a simple math formula to make "hills"
-    # Sin waves + Random noise
-    z_grid = np.sin(x_grid/10) * np.cos(y_grid/10) * 5  # Big rolling hills
-    z_grid += np.random.normal(0, 0.5, z_grid.shape)    # Rough texture
+    # 2. Generate Height (Procedural Mountains)
+    # Layer 1: Big rolling hills
+    z_grid = np.sin(x_grid/15) * np.cos(y_grid/15) * 8
+    # Layer 2: Smaller jagged details
+    z_grid += np.sin(x_grid/5) * np.sin(y_grid/5) * 2
+    # Layer 3: Random roughness
+    z_grid += np.random.normal(0, 0.5, z_grid.shape)
     
-    # Flatten the center (Where the user stands)
-    # Any point within distance 10 of center gets flattened to 0
-    distance_from_center = np.sqrt(x_grid**2 + y_grid**2)
-    mask = distance_from_center < 15
-    z_grid[mask] = z_grid[mask] * (distance_from_center[mask] / 15) # Smoothly flatten
+    # 3. The "Clearing" (Where the user stands)
+    # Flatten the center so the user isn't buried in a mountain
+    r = np.sqrt(x_grid**2 + y_grid**2)
+    center_mask = r < 20
+    # Smoothly interpolate the hole (0 at center, full height at 20)
+    z_grid[center_mask] *= (r[center_mask] / 20)**2 
+
+    # 4. The "Horizon Cut" (Make it a Circle)
+    # Any point further than 95 units is set to NaN (Invisible)
+    # This prevents square corners sticking out of the dome
+    horizon_mask = r > 95
+    z_grid[horizon_mask] = np.nan
     
+    # Optional: Fade edges to 0 height near horizon for seamless blend
+    edge_blend = (95 - r) / 10
+    blend_mask = (r > 85) & (r <= 95)
+    z_grid[blend_mask] *= edge_blend[blend_mask]
+
     return x_grid, y_grid, z_grid
 
 def create_3d_sphere_chart(visible_stars):
@@ -170,14 +185,34 @@ def create_3d_sphere_chart(visible_stars):
 
     # ... inside create_3d_sphere_chart ...
 
-    # 2. ADD THE TERRAIN (NEW!) 🏔️
+   # ... inside create_3d_sphere_chart ...
+
+    # 2. ADD THE "MOONLIT" TERRAIN 🌑
     x_ground, y_ground, z_ground = generate_terrain()
     
     fig.add_trace(go.Surface(
         x=x_ground, y=y_ground, z=z_ground,
-        colorscale='Earth', # Brown/Green colors
-        showscale=False,
-        opacity=0.9,
+        
+        # CUSTOM COLORSCALE: The secret to "Night Mode"
+        # 0.0 (Low points) -> Pitch Black
+        # 1.0 (High points) -> Dark Blue-Grey (Starlight reflection)
+        colorscale=[
+            [0, '#000000'], 
+            [0.3, '#050505'],
+            [1, '#1c2230'] 
+        ],
+        
+        # Lighting effects to make it look 3D
+        lighting=dict(
+            ambient=0.1,  # Very dim ambient light
+            diffuse=0.8,  # Rough surface
+            fresnel=0.1,  # Little shine
+            specular=0.0, # No glossy highlights
+            roughness=0.9 
+        ),
+        
+        showscale=False, # Hide the color bar
+        opacity=1.0,     # Solid ground
         name='Terrain',
         hoverinfo='skip'
     ))
