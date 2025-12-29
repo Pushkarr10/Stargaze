@@ -159,6 +159,8 @@ def generate_observatory_deck():
 # In stargaze_utils.py
 # In stargaze_utils.py
 
+# In stargaze_utils.py
+
 def create_3d_sphere_chart(visible_stars):
     # --- 1. CONVERT STARS TO 3D ---
     alt_rad = np.radians(visible_stars['altitude'])
@@ -191,18 +193,30 @@ def create_3d_sphere_chart(visible_stars):
         name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # --- 3. CLEAN COMPASS (Initials Only) 🧭 ---
-    # No lines, just floating letters at the 4 cardinal points
-    
-    # We place them at Radius 90 (near the edge)
+    # --- 3. FLOOR BRANDING (The Text) 🏷️ ---
+    # We place a giant title in the center of the floor
+    fig.add_trace(go.Scatter3d(
+        x=[0], y=[0], z=[-1.9], # Center of floor, slightly above it
+        mode='text',
+        text=["<b>STARGAZE</b>"], # You can change this to your Project Name
+        textfont=dict(
+            color='rgba(0, 0, 0, 0.1)', # Very faint black (Watermark style)
+            size=100, # Massive size
+            family="Arial Black"
+        ),
+        hoverinfo='skip',
+        name='Logo'
+    ))
+
+    # --- 4. CLEAN COMPASS (Initials Only) ---
     fig.add_trace(go.Scatter3d(
         x=[0, 90, 0, -90],  # N, E, S, W
         y=[90, 0, -90, 0], 
-        z=[-1.5, -1.5, -1.5, -1.5], # Float just above floor
+        z=[-1.5, -1.5, -1.5, -1.5],
         mode='text',
         text=["<b>N</b>", "<b>E</b>", "<b>S</b>", "<b>W</b>"],
         textfont=dict(
-            color=['#ff3333', '#000510', '#000510', '#000510'], # Red North, Black others
+            color=['#ff3333', '#000510', '#000510', '#000510'],
             size=30, 
             family="Arial Black"
         ),
@@ -210,7 +224,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Compass'
     ))
 
-    # --- 4. ADD STARS ---
+    # --- 5. ADD STARS ---
     fig.add_trace(go.Scatter3d(
         x=x, y=y, z=z,
         mode='markers',
@@ -222,7 +236,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Stars'
     ))
 
-    # --- 5. ADD OBSERVER ---
+    # --- 6. ADD OBSERVER ---
     fig.add_trace(go.Scatter3d(
         x=[0], y=[0], z=[-1],
         mode='markers',
@@ -230,7 +244,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Observer'
     ))
 
-    # --- 6. STYLE & CONTROLS ---
+    # --- 7. STYLE & CONTROLS ---
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
@@ -238,12 +252,13 @@ def create_3d_sphere_chart(visible_stars):
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
-            # 'orbit' feels slightly smoother than 'turntable', 
-            # though it won't invert the axis (Plotly limitation).
-            dragmode="orbit", 
+            
+            # REVERTED TO TURNTABLE (Fixes the "drunk" feeling)
+            dragmode="turntable", 
+            
             camera=dict(
-                eye=dict(x=0.1, y=-0.1, z=0.1), # Initial view facing North
-                up=dict(x=0, y=0, z=1) # Lock Z as "Up"
+                eye=dict(x=0.1, y=-0.1, z=0.1), 
+                up=dict(x=0, y=0, z=1)
             )
         ),
         showlegend=False,
