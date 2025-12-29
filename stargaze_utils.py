@@ -137,38 +137,44 @@ def create_star_chart(visible_stars):
 
 # In stargaze_utils.py
 
+# In stargaze_utils.py
+
 def generate_terrain():
-    # 1. Expand Grid to match Sphere Radius (100)
-    # We use 100 points for smoother detail
-    xy_range = np.linspace(-100, 100, 100)
+    # 1. High Resolution Grid for jagged details
+    xy_range = np.linspace(-100, 100, 150) # Increased res from 100 to 150
     x_grid, y_grid = np.meshgrid(xy_range, xy_range)
     
-    # 2. Generate Height (Procedural Mountains)
-    # Layer 1: Big rolling hills
-    z_grid = np.sin(x_grid/15) * np.cos(y_grid/15) * 8
-    # Layer 2: Smaller jagged details
-    z_grid += np.sin(x_grid/5) * np.sin(y_grid/5) * 2
-    # Layer 3: Random roughness
-    z_grid += np.random.normal(0, 0.5, z_grid.shape)
-    
-    # 3. The "Clearing" (Where the user stands)
-    # Flatten the center so the user isn't buried in a mountain
+    # Calculate distance from center for every point
     r = np.sqrt(x_grid**2 + y_grid**2)
-    center_mask = r < 20
-    # Smoothly interpolate the hole (0 at center, full height at 20)
-    z_grid[center_mask] *= (r[center_mask] / 20)**2 
-
-    # 4. The "Horizon Cut" (Make it a Circle)
-    # Any point further than 95 units is set to NaN (Invisible)
-    # This prevents square corners sticking out of the dome
-    horizon_mask = r > 95
-    z_grid[horizon_mask] = np.nan
     
-    # Optional: Fade edges to 0 height near horizon for seamless blend
-    edge_blend = (95 - r) / 10
-    blend_mask = (r > 85) & (r <= 95)
-    z_grid[blend_mask] *= edge_blend[blend_mask]
+    # 2. Base Layer: The "Valley Floor" (Slightly bumpy grass)
+    # Small noise so it's not perfectly flat
+    z_grid = np.random.normal(0, 0.4, z_grid.shape)
+    # Add slight rolling bumps
+    z_grid += np.sin(x_grid/7) * np.cos(y_grid/7) * 1.5
 
+    # 3. The "Ring Mountains" (The Walls)
+    # We define a threshold. Past radius 40, mountains start rising.
+    valley_radius = 40
+    mountain_mask = r > valley_radius
+    
+    # The math: (distance past valley edge)^Power
+    # Increasing the power (e.g., to 2.5 or 3) makes them steeper walls.
+    steepness_factor = 2.2 
+    height_multiplier = 0.05
+    
+    # Apply the rise only to the mountain area
+    z_grid[mountain_mask] += (r[mountain_mask] - valley_radius)**steepness_factor * height_multiplier
+    
+    # 4. Add "Craggy/Icy" details on top of the mountains
+    # Higher frequency noise that gets stronger further out
+    jaggedness = np.sin(x_grid/2) * np.sin(y_grid/3) * (r/100)**2 * 5
+    z_grid += jaggedness
+
+    # 5. The Horizon Cut (Circular Limit)
+    # Cut sharply at radius 98 so it fits inside the 100-radius star sphere
+    z_grid[r > 98] = np.nan
+    
     return x_grid, y_grid, z_grid
 
 def create_3d_sphere_chart(visible_stars):
@@ -187,32 +193,40 @@ def create_3d_sphere_chart(visible_stars):
 
    # ... inside create_3d_sphere_chart ...
 
-    # 2. ADD THE "MOONLIT" TERRAIN 🌑
+   # ... inside create_3d_sphere_chart ...
+
+    # 2. ADD THE "STARLIT VALLEY" TERRAIN 🏔️🌑
     x_ground, y_ground, z_ground = generate_terrain()
     
     fig.add_trace(go.Surface(
         x=x_ground, y=y_ground, z=z_ground,
         
-        # CUSTOM COLORSCALE: The secret to "Night Mode"
-        # 0.0 (Low points) -> Pitch Black
-        # 1.0 (High points) -> Dark Blue-Grey (Starlight reflection)
+        # CUSTOM COLORSCALE: Night Valley -> Icy Peaks
         colorscale=[
-            [0, '#000000'], 
-            [0.3, '#050505'],
-            [1, '#1c2230'] 
+            # Bottom of the valley (Deep Night Grass Green)
+            [0.0, '#030f03'], 
+            # Slightly higher grassy slopes (Desaturated dark green)
+            [0.2, '#0d2112'], 
+            # Transition zone where snow meets rock (Dark grey-blue)
+            [0.5, '#1c2b36'],
+            # Lower ice caps (Cold, dark blue-grey)
+            [0.8, '#3e4f5c'],
+            # Highest peaks catching faint starlight (Desaturated icy blue-white)
+            # IMPORTANT: Don't make this bright white, it must look lit by stars.
+            [1.0, '#6b7f8c']  
         ],
         
-        # Lighting effects to make it look 3D
+        # Lighting effects for icy realism
         lighting=dict(
-            ambient=0.1,  # Very dim ambient light
-            diffuse=0.8,  # Rough surface
-            fresnel=0.1,  # Little shine
-            specular=0.0, # No glossy highlights
-            roughness=0.9 
+            ambient=0.15, # Overall dim starlight
+            diffuse=0.8,  # Rough texture for rock/grass
+            fresnel=0.4,  # Adds a slight "rim lighting" effect to edges (good for ice)
+            specular=0.3, # Slight shiny highlights on the ice peaks
+            roughness=0.7 # Fairly rough surface
         ),
         
-        showscale=False, # Hide the color bar
-        opacity=1.0,     # Solid ground
+        showscale=False,
+        opacity=1.0,
         name='Terrain',
         hoverinfo='skip'
     ))
