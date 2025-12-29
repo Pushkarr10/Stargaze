@@ -351,61 +351,93 @@ import pytz
 from streamlit_folium import st_folium
 import folium
 
-st.set_page_config(layout="wide", page_title="Stargaze Mobile")
+st.set_page_config(layout="wide", page_title="StarGaze ")
 
 # CSS adjustments
 st.markdown("""
 <style>
     .block-container {padding-top: 1rem; padding-bottom: 0rem;}
     div[data-testid="stExpander"] {border: none; box-shadow: none;}
+    /* Align the 'Now' button with the date picker */
+    div.stButton > button:first-child { margin-top: 1.8rem; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("✨ Stargaze")
 
+# --- SESSION STATE SETUP ---
+# We use session state to allow the "Now" button to override the slider
+if 'sim_date' not in st.session_state:
+    st.session_state.sim_date = datetime.now().date()
+if 'sim_time' not in st.session_state:
+    # Round to nearest minute for cleaner slider behavior
+    now = datetime.now()
+    st.session_state.sim_time = time(now.hour, now.minute)
+if 'lat' not in st.session_state: st.session_state.lat = 19.07
+if 'lon' not in st.session_state: st.session_state.lon = 72.87
+
+# --- HELPER: RESET TO NOW ---
+def reset_to_now():
+    now = datetime.now()
+    st.session_state.sim_date = now.date()
+    st.session_state.sim_time = time(now.hour, now.minute)
+
 # --- 1. SETTINGS MENU ---
 with st.expander("⚙️ Location & Time", expanded=False):
     
-    # A. MAP PICKER
+    # A. MAP PICKER (Unchanged)
     st.write("**Tap map to set location:**")
-    
-    # Create a base map centered on the last known location (or default Mumbai)
-    # We use session_state to remember where the pin was
-    if 'lat' not in st.session_state: st.session_state.lat = 19.07
-    if 'lon' not in st.session_state: st.session_state.lon = 72.87
-
     m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=4)
-    m.add_child(folium.LatLngPopup()) # Allows clicking
-    
-    # Render map and get return data
+    m.add_child(folium.LatLngPopup())
     map_data = st_folium(m, height=250, width="100%")
 
-    # Update lat/lon if user clicked
     if map_data['last_clicked']:
         st.session_state.lat = map_data['last_clicked']['lat']
         st.session_state.lon = map_data['last_clicked']['lng']
 
-    # Display selected coords (readonly)
     st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f}")
 
-    # B. TIME PICKER
-    col1, col2 = st.columns(2)
-    with col1: user_date = st.date_input("Date", value=datetime.now())
-    with col2: user_time = st.time_input("Time", value=datetime.now())
+    # B. STELLARIUM TIME CONTROLS (NEW!) ⏱️
+    st.markdown("---")
+    
+    # Date + Now Button Row
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        # We bind this widget to 'sim_date' in session_state
+        st.date_input("Date", key="sim_date")
+    with col2:
+        # The Reset Button
+        st.button("↺ Now", on_click=reset_to_now, help="Jump to current time")
 
-observer_time = datetime.combine(user_date, user_time).replace(tzinfo=pytz.utc)
+    # The Time Slider (Scrubber)
+    # This allows dragging from 00:00 to 23:59
+    current_slider_val = st.slider(
+        "Time Scrub",
+        min_value=time(0, 0),
+        max_value=time(23, 59),
+        value=st.session_state.sim_time,
+        format="HH:mm",
+        key="sim_time", # Binds to session state
+        help="Drag to change time of day"
+    )
+
+# Combine Date and Slider Time into one object
+observer_time = datetime.combine(st.session_state.sim_date, st.session_state.sim_time).replace(tzinfo=pytz.utc)
 
 # --- 2. MAIN APP ---
 tab1, tab2 = st.tabs(["🪐 3D Immersion", "🗺️ 2D Map"])
 
+# Show a little status text so user knows exactly what time they are seeing
+st.caption(f"Observing Sky at: **{observer_time.strftime('%Y-%m-%d %H:%M')}**")
+
 with st.spinner("Aligning satellites..."):
     df = star_logic.load_star_data()
-    # USE SESSION STATE LAT/LON
     visible_stars = star_logic.calculate_sky_positions(df, st.session_state.lat, st.session_state.lon, observer_time)
 
 with tab1:
     fig_3d = star_logic.create_3d_sphere_chart(visible_stars)
-    fig_3d.update_layout(height=500, showlegend=False) # Ensure legend is off
+    # Ensure legend is off and height matches
+    fig_3d.update_layout(height=500, showlegend=False) 
     st.plotly_chart(fig_3d, use_container_width=True)
 
 with tab2:
