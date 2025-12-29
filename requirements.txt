@@ -10,3 +10,4 @@ plotly
 skyfield
 streamlit-folium
 folium
+Pillow
