@@ -54,55 +54,61 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
 # 3. The Plotter
 # In stargaze_utils.py
 # --- 1. IMAGE LOADER (NEW!) ---
-def load_terrain_texture(filename, resolution=200):
+def process_terrain_mesh(filename, resolution=150):
     """
-    Loads 'terrain.png', crops it to a square, resizes it, 
-    and converts it to a grid of color strings for Plotly.
+    Generates a circular grid of points and matches them to image pixels.
+    Returns flattened X, Y, Z arrays and a list of Colors.
     """
+    # 1. Generate the Grid
+    xy = np.linspace(-100, 100, resolution)
+    x_grid, y_grid = np.meshgrid(xy, xy)
+    
+    # 2. Calculate Radius & Create Mask (The Circle Cut)
+    radius = np.sqrt(x_grid**2 + y_grid**2)
+    mask = radius <= 100
+    
+    # 3. Apply Mask to Coordinates (Flattening them)
+    x_flat = x_grid[mask]
+    y_flat = y_grid[mask]
+    z_flat = np.full_like(x_flat, -2) # Z is flat at -2 height
+    
+    # 4. Process Image
     try:
-        # Load image
         img = Image.open(filename)
         
-        # 1. CROP TO SQUARE (Center Crop)
-        # We need a perfect square to map onto our circular coordinate system
+        # Crop to Center Square
         width, height = img.size
         min_dim = min(width, height)
-        left = (width - min_dim) / 2
-        top = (height - min_dim) / 2
-        right = (width + min_dim) / 2
-        bottom = (height + min_dim) / 2
+        left = (width - min_dim)/2
+        top = (height - min_dim)/2
+        right = (width + min_dim)/2
+        bottom = (height + min_dim)/2
         img = img.crop((left, top, right, bottom))
         
-        # 2. RESIZE to match our grid resolution
-        # Using simple resizing. For high res, increase 'resolution'
+        # Resize to match grid resolution
         img = img.resize((resolution, resolution))
-        
-        # 3. CONVERT TO PLOTLY COLORS
-        # Convert image to numpy array (R, G, B)
         img_array = np.array(img)
         
-        # Create an empty grid of strings
-        color_grid = np.empty((resolution, resolution), dtype=object)
-        
-        # This loop creates "rgb(r,g,b)" strings for every pixel
-        # (Vectorized for speed)
+        # Extract RGB channels & Convert to Plotly Strings
         R = img_array[:,:,0]
         G = img_array[:,:,1]
         B = img_array[:,:,2]
         
-        # Combine into strings
-        # Format: "rgb(120, 40, 255)"
         color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
         color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
         color_grid = np.char.add(color_grid, ')')
         
-        return color_grid
+        # Apply the SAME mask to colors so they match the points
+        colors_flat = color_grid[mask]
+        
+        return x_flat, y_flat, z_flat, colors_flat
         
     except Exception as e:
-        # Fallback if image is missing: Return a Grey Grid
-        print(f"Texture Error: {e}")
-        return np.full((resolution, resolution), 'rgb(50,50,50)', dtype=object)
-
+        # Fallback: Dark Grey Floor if image fails
+        print(f"Texture Fallback: {e}")
+        colors_flat = np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
+        return x_flat, y_flat, z_flat, colors_flat
+    
 # --- 2. ARCHITECTURE GENERATOR (UPDATED FOR TEXTURES) ---
 def generate_textured_deck(resolution=200):
     # We switch from Polar (Circles) to Cartesian (Squares) 
@@ -209,128 +215,75 @@ def create_star_chart(visible_stars):
  # In stargaze_utils.py
 # In stargaze_utils.py
 
-def generate_observatory_deck():
-    # PART A: THE FLOOR (Now extends to 100 radius to touch the horizon)
-    # We use polar coordinates to make a perfect circle mesh
-    r_floor = np.linspace(0, 100, 20)  # CHANGED: 20 -> 100 (Full Horizon)
-    theta_floor = np.linspace(0, 2*np.pi, 60) # Increased resolution for smoothness
-    r_grid, theta_grid = np.meshgrid(r_floor, theta_floor)
-    
-    x_floor = r_grid * np.cos(theta_grid)
-    y_floor = r_grid * np.sin(theta_grid)
-    
-    # Place it at Z = -2 (just below eye level so you feel tall)
-    z_floor = np.zeros_like(x_floor) - 2 
-
-    # PART B: THE RAILING (The Rim at the Horizon)
-    # A cylinder at radius 99 (just inside the 100 star sphere)
-    z_rail = np.linspace(-2, 5, 5) # From floor (-2) up to a high wall (5)
-    theta_rail = np.linspace(0, 2*np.pi, 100)
-    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
-    
-    x_rail = 99 * np.cos(theta_grid_rail) 
-    y_rail = 99 * np.sin(theta_grid_rail)
-    
-    return (x_floor, y_floor, z_floor), (x_rail, y_rail, z_grid_rail)
-    
-# In stargaze_utils.py
-# In stargaze_utils.py
-
-# In stargaze_utils.py
-
 def create_3d_sphere_chart(visible_stars):
     # --- 1. CONVERT STARS TO 3D ---
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
     r_sphere = 100 
-    
     x = r_sphere * np.cos(alt_rad) * np.sin(az_rad)
     y = r_sphere * np.cos(alt_rad) * np.cos(az_rad)
     z = r_sphere * np.sin(alt_rad)
     
     fig = go.Figure()
 
-    # --- 2. ADD THE TEXTURED DECK ---
-    # Get Geometry and Texture
-    (x_f, y_f, z_f), (x_r, y_r, z_r) = generate_textured_deck(resolution=200)
-    texture_colors = load_terrain_texture("terrain.png", resolution=200)
-
-    # Plot the Floor with the Image
-    fig.add_trace(go.Surface(
+    # --- 2. ADD TEXTURED FLOOR (Using Mesh3d) ---
+    # This paints every point with the exact pixel color from terrain.png
+    x_f, y_f, z_f, c_f = process_terrain_mesh("terrain.png", resolution=150)
+    
+    fig.add_trace(go.Mesh3d(
         x=x_f, y=y_f, z=z_f,
-        surfacecolor=texture_colors, # <--- THIS IS THE IMAGE
-        showscale=False,
+        vertexcolor=c_f, # <--- THIS IS THE KEY FIX
         name='Terrain Floor',
         hoverinfo='skip',
-        # Lighting: High ambient so the image is visible, low diffuse so it's flat
-        lighting=dict(ambient=0.8, diffuse=0.2, roughness=0.5, specular=0.0)
+        opacity=1.0,
+        delaunayaxis='z' # Connects dots automatically
     ))
 
-    # The Railing (Horizon Wall) - Kept same as before
+    # --- 3. THE RAILING (Horizon Wall) ---
+    # We regenerate the railing geometry here locally to keep it modular
+    z_rail = np.linspace(-2, 5, 5)
+    theta_rail = np.linspace(0, 2*np.pi, 100)
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    x_rail = 99 * np.cos(theta_grid_rail)
+    y_rail = 99 * np.sin(theta_grid_rail)
+
     fig.add_trace(go.Surface(
-        x=x_r, y=y_r, z=z_r,
+        x=x_rail, y=y_rail, z=z_grid_rail,
         colorscale=[[0, '#00d2ff'], [1, '#000510']], 
         showscale=False, opacity=0.6, 
         name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # --- 3. CLEAN COMPASS (Initials Only) ---
-    # Kept exactly as you had it
+    # --- 4. CLEAN COMPASS (Initials Only) ---
     fig.add_trace(go.Scatter3d(
-        x=[0, 90, 0, -90],  # N, E, S, W
-        y=[90, 0, -90, 0], 
-        z=[-1.5, -1.5, -1.5, -1.5],
+        x=[0, 90, 0, -90], y=[90, 0, -90, 0], z=[-1.5, -1.5, -1.5, -1.5],
         mode='text',
         text=["<b>N</b>", "<b>E</b>", "<b>S</b>", "<b>W</b>"],
-        textfont=dict(
-            color=['#ff3333', '#000510', '#000510', '#000510'],
-            size=30, 
-            family="Arial Black"
-        ),
-        hoverinfo='skip',
-        name='Compass'
+        textfont=dict(color=['#ff3333', '#000510', '#000510', '#000510'], size=30, family="Arial Black"),
+        hoverinfo='skip', name='Compass'
     ))
 
-    # --- 4. ADD STARS ---
+    # --- 5. STARS & OBSERVER ---
     fig.add_trace(go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='markers',
-        marker=dict(
-            size=np.clip(5 - visible_stars['mag'], 1, 5),
-            color='white', opacity=0.8, line=dict(width=0)
-        ),
-        hovertext=visible_stars['proper'],
-        name='Stars'
+        x=x, y=y, z=z, mode='markers',
+        marker=dict(size=np.clip(5 - visible_stars['mag'], 1, 5), color='white', opacity=0.8, line=dict(width=0)),
+        hovertext=visible_stars['proper'], name='Stars'
     ))
-
-    # --- 5. ADD OBSERVER ---
     fig.add_trace(go.Scatter3d(
-        x=[0], y=[0], z=[-1],
-        mode='markers',
-        marker=dict(size=4, color='#00ff00'),
-        name='Observer'
+        x=[0], y=[0], z=[-1], mode='markers',
+        marker=dict(size=4, color='#00ff00'), name='Observer'
     ))
 
-    # --- 6. STYLE & CONTROLS ---
+    # --- 6. LAYOUT ---
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
             bgcolor='#000510',
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
-            zaxis=dict(visible=False),
-            
-            # REVERTED TO TURNTABLE (As requested)
+            xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
             dragmode="turntable", 
-            
-            camera=dict(
-                eye=dict(x=0.1, y=-0.1, z=0.1), 
-                up=dict(x=0, y=0, z=1)
-            )
+            camera=dict(eye=dict(x=0.1, y=-0.1, z=0.1), up=dict(x=0, y=0, z=1))
         ),
-        showlegend=False,
-        margin=dict(l=0, r=0, b=0, t=0),
-        height=500
+        showlegend=False, margin=dict(l=0, r=0, b=0, t=0), height=500
     )
     
     return fig
