@@ -52,6 +52,101 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     # Filter: Keep only stars above the horizon
     return df[df['altitude'] > 0]
 # 3. The Plotter
+# In stargaze_utils.py
+# --- 1. IMAGE LOADER (NEW!) ---
+# --- 4. IMAGE PROCESSOR (Fixed: Higher Res + Flip) ---
+def process_terrain_mesh(filename, resolution=300): # INCREASED DEFAULT TO 300
+    """
+    Generates a circular grid of points and matches them to image pixels.
+    Returns flattened X, Y, Z arrays and a list of Colors.
+    """
+    # 1. Generate the Grid
+    xy = np.linspace(-100, 100, resolution)
+    x_grid, y_grid = np.meshgrid(xy, xy)
+    
+    # 2. Calculate Radius & Create Mask (The Circle Cut)
+    radius = np.sqrt(x_grid**2 + y_grid**2)
+    mask = radius <= 100
+    
+    # 3. Apply Mask to Coordinates (Flattening them)
+    x_flat = x_grid[mask]
+    y_flat = y_grid[mask]
+    z_flat = np.full_like(x_flat, -2) 
+    
+    # 4. Process Image
+    try:
+        if not os.path.exists(filename):
+            # Silent fallback so app doesn't crash on simple refreshes
+            return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
+            
+        img = Image.open(filename)
+        
+        # --- FIX 1: UNSCRAMBLE THE IMAGE ---
+        # Flip Left-Right to fix the "Mirror" effect
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        # If it is upside down, uncomment the next line:
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        
+        # Crop to Center Square
+        width, height = img.size
+        min_dim = min(width, height)
+        left = (width - min_dim)/2
+        top = (height - min_dim)/2
+        right = (width + min_dim) / 2
+        bottom = (height + min_dim) / 2
+        img = img.crop((left, top, right, bottom))
+        
+        # --- FIX 2: HIGH DEFINITION ---
+        # Resize to match the higher resolution grid (300x300)
+        img = img.resize((resolution, resolution))
+        img_array = np.array(img)
+        
+        # Extract RGB channels
+        R = img_array[:,:,0]
+        G = img_array[:,:,1]
+        B = img_array[:,:,2]
+        
+        # Convert to Plotly Color Strings
+        color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
+        color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
+        color_grid = np.char.add(color_grid, ')')
+        
+        # Apply the SAME mask to colors
+        colors_flat = color_grid[mask]
+        
+        return x_flat, y_flat, z_flat, colors_flat
+        
+    except Exception as e:
+        print(f"Texture Fallback: {e}")
+        colors_flat = np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
+        return x_flat, y_flat, z_flat, colors_flat
+        
+# --- 2. ARCHITECTURE GENERATOR (UPDATED FOR TEXTURES) ---
+def generate_textured_deck(resolution=200):
+    # We switch from Polar (Circles) to Cartesian (Squares) 
+    # so the image pixels line up perfectly.
+    
+    # 1. Create a Square Grid (-100 to 100)
+    xy = np.linspace(-100, 100, resolution)
+    x_grid, y_grid = np.meshgrid(xy, xy)
+    
+    # 2. The Floor Height (Z)
+    z_floor = np.zeros_like(x_grid) - 2
+    
+    # 3. Cut the Circle (The Cookie Cutter)
+    # Any point further than 100 units from center is invisible
+    radius = np.sqrt(x_grid**2 + y_grid**2)
+    mask = radius > 100
+    z_floor[mask] = np.nan # Hides the corners
+    
+    # 4. The Railing (Ring Wall) - Keeps using Polar for smooth curves
+    z_rail = np.linspace(-2, 5, 5)
+    theta_rail = np.linspace(0, 2*np.pi, 100)
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    x_rail = 99 * np.cos(theta_grid_rail)
+    y_rail = 99 * np.sin(theta_grid_rail)
+    
+    return (x_grid, y_grid, z_floor), (x_rail, y_rail, z_grid_rail)
 
 def create_star_chart(visible_stars):
     fig = go.Figure()
@@ -129,64 +224,27 @@ def create_star_chart(visible_stars):
         )
 
     return fig
-# In stargaze_utils.py
-# --- 1. IMAGE LOADER (NEW!) ---
-# --- 4. IMAGE PROCESSOR (Fixed High-Res & Flip) ---
-def process_terrain_mesh(filename, resolution=300):
-    xy = np.linspace(-100, 100, resolution)
-    x_grid, y_grid = np.meshgrid(xy, xy)
-    
-    # Circle Mask
-    radius = np.sqrt(x_grid**2 + y_grid**2)
-    mask = radius <= 100
-    
-    x_flat = x_grid[mask]
-    y_flat = y_grid[mask]
-    z_flat = np.full_like(x_flat, -2) 
-    
-    try:
-        if not os.path.exists(filename):
-            return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
-            
-        img = Image.open(filename)
-        img = img.transpose(Image.FLIP_LEFT_RIGHT) # Fix Mirroring
-        
-        # Center Crop
-        width, height = img.size
-        min_dim = min(width, height)
-        left = (width - min_dim)/2
-        top = (height - min_dim)/2
-        right = (width + min_dim)/2
-        bottom = (height + min_dim)/2
-        img = img.crop((left, top, right, bottom))
-        
-        # Resize & Color Process
-        img = img.resize((resolution, resolution))
-        img_array = np.array(img)
-        R, G, B = img_array[:,:,0], img_array[:,:,1], img_array[:,:,2]
-        
-        color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
-        color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
-        color_grid = np.char.add(color_grid, ')')
-        
-        return x_flat, y_flat, z_flat, color_grid[mask]
-        
-    except Exception as e:
-        print(f"Texture Error: {e}")
-        return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
-
-# --- 5. RAILING GENERATOR (The Missing Link) ---
+ # In stargaze_utils.py
+# --- 5. RAILING GENERATOR ---
 def generate_railing():
+    # Vertical range for the wall
     z_rail = np.linspace(-2, 5, 5)
+    # Full circle coordinates
     theta_rail = np.linspace(0, 2*np.pi, 100)
+    
+    # Create the mesh grid
     z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    
+    # Convert to Cartesian (at radius 99, just inside the stars)
     x_rail = 99 * np.cos(theta_grid_rail)
     y_rail = 99 * np.sin(theta_grid_rail)
+    
     return x_rail, y_rail, z_grid_rail
+# In stargaze_utils.py
 
-# --- 6. 3D CHART GENERATOR ---
+# --- 6. 3D CHART GENERATOR (Updated Call) ---
 def create_3d_sphere_chart(visible_stars):
-    # A. Star Math
+    # --- A. STAR MATH ---
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
     r_sphere = 100 
@@ -196,16 +254,20 @@ def create_3d_sphere_chart(visible_stars):
     
     fig = go.Figure()
 
-    # B. Textured Floor
+    # --- B. ADD TEXTURED FLOOR ---
+    # Call with HIGHER RESOLUTION (300)
     x_f, y_f, z_f, c_f = process_terrain_mesh("terrain.png", resolution=300)
+    
     fig.add_trace(go.Mesh3d(
         x=x_f, y=y_f, z=z_f,
         vertexcolor=c_f, 
         name='Terrain Floor',
-        hoverinfo='skip', opacity=1.0, delaunayaxis='z' 
+        hoverinfo='skip',
+        opacity=1.0,
+        delaunayaxis='z' 
     ))
 
-    # C. Railing
+    # --- C. RAILING ---
     x_r, y_r, z_r = generate_railing()
     fig.add_trace(go.Surface(
         x=x_r, y=y_r, z=z_r,
@@ -214,7 +276,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # D. Compass
+    # --- D. COMPASS ---
     fig.add_trace(go.Scatter3d(
         x=[0, 90, 0, -90], y=[90, 0, -90, 0], z=[-1.5, -1.5, -1.5, -1.5],
         mode='text',
@@ -223,18 +285,20 @@ def create_3d_sphere_chart(visible_stars):
         hoverinfo='skip', name='Compass'
     ))
 
-    # E. Stars & Observer
+    # --- E. STARS ---
     fig.add_trace(go.Scatter3d(
         x=x, y=y, z=z, mode='markers',
         marker=dict(size=np.clip(5 - visible_stars['mag'], 1, 5), color='white', opacity=0.8, line=dict(width=0)),
         hovertext=visible_stars['proper'], name='Stars'
     ))
+
+    # --- F. OBSERVER ---
     fig.add_trace(go.Scatter3d(
         x=[0], y=[0], z=[-1], mode='markers',
         marker=dict(size=4, color='#00ff00'), name='Observer'
     ))
 
-    # F. Layout
+    # --- G. LAYOUT ---
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
@@ -245,4 +309,5 @@ def create_3d_sphere_chart(visible_stars):
         ),
         showlegend=False, margin=dict(l=0, r=0, b=0, t=0), height=500
     )
+    
     return fig
