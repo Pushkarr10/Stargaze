@@ -23,15 +23,19 @@ def load_star_data():
 
 # 2. The Calculator
 # Update the definition to accept 'custom_time'
+# In stargaze_utils.py
+
+# 2. The Calculator (Updated to accept Time)
 def calculate_sky_positions(df, lat, lon, custom_time=None):
     ts = load.timescale()
     
-    # IF the user provided a time, use it. ELSE use "now"
+    # LOGIC: If 'app.py' sends a time, use it. Otherwise, use "now".
     if custom_time:
         t = ts.from_datetime(custom_time)
     else:
         t = ts.now()
 
+    # Load Earth positions
     planets = load('de421.bsp')
     earth = planets['earth']
     
@@ -44,8 +48,8 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     df['altitude'] = alt.degrees
     df['azimuth'] = az.degrees
     
+    # Filter: Keep only stars above the horizon
     return df[df['altitude'] > 0]
-
 # 3. The Plotter
 # In stargaze_utils.py
 
