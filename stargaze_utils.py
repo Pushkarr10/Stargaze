@@ -130,45 +130,31 @@ def create_star_chart(visible_stars):
 
     return fig
  # In stargaze_utils.py
+# In stargaze_utils.py
 
-def generate_terrain():
-    # 1. High Resolution Grid for jagged details
-    xy_range = np.linspace(-100, 100, 150)
-    x_grid, y_grid = np.meshgrid(xy_range, xy_range)
+def generate_observatory_deck():
+    # PART A: THE FLOOR (A flat disk)
+    # We use polar coordinates to make a perfect circle mesh
+    r_floor = np.linspace(0, 20, 10)  # Radius 0 to 20
+    theta_floor = np.linspace(0, 2*np.pi, 30) # Full circle
+    r_grid, theta_grid = np.meshgrid(r_floor, theta_floor)
     
-    # Calculate distance from center for every point
-    r = np.sqrt(x_grid**2 + y_grid**2)
-    
-    # 2. Base Layer: The "Valley Floor"
-    # FIX: We use 'x_grid.shape' here because z_grid doesn't exist yet
-    z_grid = np.random.normal(0, 0.4, x_grid.shape)
-    
-    # Add slight rolling bumps
-    z_grid += np.sin(x_grid/7) * np.cos(y_grid/7) * 1.5
+    x_floor = r_grid * np.cos(theta_grid)
+    y_floor = r_grid * np.sin(theta_grid)
+    z_floor = np.zeros_like(x_floor) - 2 # Place it slightly below camera (z=-2)
 
-    # 3. The "Ring Mountains" (The Walls)
-    # We define a threshold. Past radius 40, mountains start rising.
-    valley_radius = 40
-    mountain_mask = r > valley_radius
+    # PART B: THE RAILING (A ring wall)
+    # A cylinder at radius 20
+    z_rail = np.linspace(-2, 0, 5) # From floor height (-2) up to waist height (0)
+    theta_rail = np.linspace(0, 2*np.pi, 50)
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
     
-    # The math: (distance past valley edge)^Power
-    steepness_factor = 2.2 
-    height_multiplier = 0.05
+    x_rail = 20 * np.cos(theta_grid_rail) # Radius is locked at 20
+    y_rail = 20 * np.sin(theta_grid_rail)
+    # The Z height is just the grid we made
     
-    # Apply the rise only to the mountain area
-    z_grid[mountain_mask] += (r[mountain_mask] - valley_radius)**steepness_factor * height_multiplier
-    
-    # 4. Add "Craggy/Icy" details on top of the mountains
-    # Higher frequency noise that gets stronger further out
-    jaggedness = np.sin(x_grid/2) * np.sin(y_grid/3) * (r/100)**2 * 5
-    z_grid += jaggedness
+    return (x_floor, y_floor, z_floor), (x_rail, y_rail, z_grid_rail)
 
-    # 5. The Horizon Cut (Circular Limit)
-    # Cut sharply at radius 98 so it fits inside the 100-radius star sphere
-    z_grid[r > 98] = np.nan
-    
-    return x_grid, y_grid, z_grid
-    
 def create_3d_sphere_chart(visible_stars):
     # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
@@ -187,41 +173,32 @@ def create_3d_sphere_chart(visible_stars):
 
    # ... inside create_3d_sphere_chart ...
 
-    # 2. ADD THE "STARLIT VALLEY" TERRAIN 🏔️🌑
-    x_ground, y_ground, z_ground = generate_terrain()
+   # ... inside create_3d_sphere_chart ...
+
+    # 2. ADD THE OBSERVATORY DECK (NEW!) 🏟️
+    (x_floor, y_floor, z_floor), (x_rail, y_rail, z_rail) = generate_observatory_deck()
     
+    # Trace A: The Floor (Dark Tiled look)
     fig.add_trace(go.Surface(
-        x=x_ground, y=y_ground, z=z_ground,
-        
-        # CUSTOM COLORSCALE: Night Valley -> Icy Peaks
-        colorscale=[
-            # Bottom of the valley (Deep Night Grass Green)
-            [0.0, '#030f03'], 
-            # Slightly higher grassy slopes (Desaturated dark green)
-            [0.2, '#0d2112'], 
-            # Transition zone where snow meets rock (Dark grey-blue)
-            [0.5, '#1c2b36'],
-            # Lower ice caps (Cold, dark blue-grey)
-            [0.8, '#3e4f5c'],
-            # Highest peaks catching faint starlight (Desaturated icy blue-white)
-            # IMPORTANT: Don't make this bright white, it must look lit by stars.
-            [1.0, '#6b7f8c']  
-        ],
-        
-        # Lighting effects for icy realism
-        lighting=dict(
-            ambient=0.15, # Overall dim starlight
-            diffuse=0.8,  # Rough texture for rock/grass
-            fresnel=0.4,  # Adds a slight "rim lighting" effect to edges (good for ice)
-            specular=0.3, # Slight shiny highlights on the ice peaks
-            roughness=0.7 # Fairly rough surface
-        ),
-        
+        x=x_floor, y=y_floor, z=z_floor,
+        colorscale=[[0, '#0f111a'], [1, '#1a1d2e']], # Dark metallic blue
         showscale=False,
         opacity=1.0,
-        name='Terrain',
+        name='Deck Floor',
+        hoverinfo='skip',
+        lighting=dict(ambient=0.3, diffuse=0.6, roughness=0.1, specular=0.5) # Shiny floor
+    ))
+
+    # Trace B: The Railing (Glowing Rim)
+    fig.add_trace(go.Surface(
+        x=x_rail, y=y_rail, z=z_rail,
+        colorscale=[[0, '#00d2ff'], [1, '#00d2ff']], # Neon Cyan/Blue
+        showscale=False,
+        opacity=0.4, # Semi-transparent glass look
+        name='Railing',
         hoverinfo='skip'
     ))
+    
 
     # 3. ADD STARS
     fig.add_trace(go.Scatter3d(
