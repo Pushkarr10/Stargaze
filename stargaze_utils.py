@@ -1,19 +1,12 @@
 import pandas as pd
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
-import streamlit as st # Only needed if you use @st.cache_data
-@st.cache_data
-# 1.The loader
-# In stargaze_utils.py
+import streamlit as st
 
-@st.cache_data
-def load_star_data():
-   # In stargaze_utils.py
-
+# 1. The Loader (Emergency Version - No Download Needed)
 @st.cache_data
 def load_star_data():
     # EMERGENCY FALLBACK: Manually create a tiny database of 10 bright stars
-    # This requires NO download and NO external file.
     data = {
         'id': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         'proper': ['Sun', 'Sirius', 'Canopus', 'Arcturus', 'Vega', 'Capella', 'Rigel', 'Procyon', 'Betelgeuse', 'Altair'],
@@ -27,17 +20,24 @@ def load_star_data():
 def calculate_sky_positions(df, lat, lon):
     ts = load.timescale()
     t = ts.now()
+    
+    # Load Earth positions (Skyfield will download a small file 'de421.bsp' once)
     planets = load('de421.bsp')
     earth = planets['earth']
+    
     observer = earth + wgs84.latlon(lat, lon)
     stars = Star(ra_hours=df['ra'], dec_degrees=df['dec'])
+    
     astrometric = observer.at(t).observe(stars)
     alt, az, distance = astrometric.apparent().altaz()
+    
     df['altitude'] = alt.degrees
     df['azimuth'] = az.degrees
+    
+    # Filter: Keep only stars above the horizon
     return df[df['altitude'] > 0]
 
-# 3. The Plotter (Returns a 'fig' object, doesn't draw it yet)
+# 3. The Plotter
 def create_star_chart(visible_stars):
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
@@ -45,12 +45,13 @@ def create_star_chart(visible_stars):
         theta = visible_stars['azimuth'],
         mode = 'markers',
         marker = dict(
-            size = 8 - visible_stars['mag'],
+            size = 10,  # Fixed size for this test
             color = 'white',
             opacity = 0.8
         ),
         hovertext = visible_stars['proper']
     ))
+    
     fig.update_layout(
         polar = dict(
             bgcolor = "black",
