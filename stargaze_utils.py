@@ -198,8 +198,8 @@ def create_3d_sphere_chart(visible_stars):
                 eye=dict(x=0.1, y=0.1, z=0.1) # Start view CLOSE to the ground (Human view)
             )
         ),
+        showlegend=False,
         margin=dict(l=0, r=0, b=0, t=0),
-        height=700
+        height=500
     )
-    
     return fig
