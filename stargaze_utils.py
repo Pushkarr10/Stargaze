@@ -3,6 +3,7 @@ import numpy as np  # <-- This was missing!
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
 import streamlit as st
+from PIL import Image #
 
 # 1. The Loader (Emergency Version - No Download Needed)
 @st.cache_data
@@ -52,6 +53,82 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     return df[df['altitude'] > 0]
 # 3. The Plotter
 # In stargaze_utils.py
+# --- 1. IMAGE LOADER (NEW!) ---
+def load_terrain_texture(filename, resolution=200):
+    """
+    Loads 'terrain.png', crops it to a square, resizes it, 
+    and converts it to a grid of color strings for Plotly.
+    """
+    try:
+        # Load image
+        img = Image.open(filename)
+        
+        # 1. CROP TO SQUARE (Center Crop)
+        # We need a perfect square to map onto our circular coordinate system
+        width, height = img.size
+        min_dim = min(width, height)
+        left = (width - min_dim) / 2
+        top = (height - min_dim) / 2
+        right = (width + min_dim) / 2
+        bottom = (height + min_dim) / 2
+        img = img.crop((left, top, right, bottom))
+        
+        # 2. RESIZE to match our grid resolution
+        # Using simple resizing. For high res, increase 'resolution'
+        img = img.resize((resolution, resolution))
+        
+        # 3. CONVERT TO PLOTLY COLORS
+        # Convert image to numpy array (R, G, B)
+        img_array = np.array(img)
+        
+        # Create an empty grid of strings
+        color_grid = np.empty((resolution, resolution), dtype=object)
+        
+        # This loop creates "rgb(r,g,b)" strings for every pixel
+        # (Vectorized for speed)
+        R = img_array[:,:,0]
+        G = img_array[:,:,1]
+        B = img_array[:,:,2]
+        
+        # Combine into strings
+        # Format: "rgb(120, 40, 255)"
+        color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
+        color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
+        color_grid = np.char.add(color_grid, ')')
+        
+        return color_grid
+        
+    except Exception as e:
+        # Fallback if image is missing: Return a Grey Grid
+        print(f"Texture Error: {e}")
+        return np.full((resolution, resolution), 'rgb(50,50,50)', dtype=object)
+
+# --- 2. ARCHITECTURE GENERATOR (UPDATED FOR TEXTURES) ---
+def generate_textured_deck(resolution=200):
+    # We switch from Polar (Circles) to Cartesian (Squares) 
+    # so the image pixels line up perfectly.
+    
+    # 1. Create a Square Grid (-100 to 100)
+    xy = np.linspace(-100, 100, resolution)
+    x_grid, y_grid = np.meshgrid(xy, xy)
+    
+    # 2. The Floor Height (Z)
+    z_floor = np.zeros_like(x_grid) - 2
+    
+    # 3. Cut the Circle (The Cookie Cutter)
+    # Any point further than 100 units from center is invisible
+    radius = np.sqrt(x_grid**2 + y_grid**2)
+    mask = radius > 100
+    z_floor[mask] = np.nan # Hides the corners
+    
+    # 4. The Railing (Ring Wall) - Keeps using Polar for smooth curves
+    z_rail = np.linspace(-2, 5, 5)
+    theta_rail = np.linspace(0, 2*np.pi, 100)
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    x_rail = 99 * np.cos(theta_grid_rail)
+    y_rail = 99 * np.sin(theta_grid_rail)
+    
+    return (x_grid, y_grid, z_floor), (x_rail, y_rail, z_grid_rail)
 
 def create_star_chart(visible_stars):
     fig = go.Figure()
@@ -173,42 +250,32 @@ def create_3d_sphere_chart(visible_stars):
     
     fig = go.Figure()
 
-    # --- 2. ADD THE OBSERVATORY DECK ---
-    (x_floor, y_floor, z_floor), (x_rail, y_rail, z_rail) = generate_observatory_deck()
-    
-    # The Floor (Clean White/Grey)
+    # --- 2. ADD THE TEXTURED DECK ---
+    # Get Geometry and Texture
+    (x_f, y_f, z_f), (x_r, y_r, z_r) = generate_textured_deck(resolution=200)
+    texture_colors = load_terrain_texture("terrain.png", resolution=200)
+
+    # Plot the Floor with the Image
     fig.add_trace(go.Surface(
-        x=x_floor, y=y_floor, z=z_floor,
-        colorscale=[[0, '#e0e0e0'], [1, '#909090']], 
-        showscale=False, opacity=1.0,
-        name='Deck Floor', hoverinfo='skip',
-        lighting=dict(ambient=0.4, diffuse=0.5, roughness=0.9, specular=0.1)
+        x=x_f, y=y_f, z=z_f,
+        surfacecolor=texture_colors, # <--- THIS IS THE IMAGE
+        showscale=False,
+        name='Terrain Floor',
+        hoverinfo='skip',
+        # Lighting: High ambient so the image is visible, low diffuse so it's flat
+        lighting=dict(ambient=0.8, diffuse=0.2, roughness=0.5, specular=0.0)
     ))
 
-    # The Railing (Horizon Wall)
+    # The Railing (Horizon Wall) - Kept same as before
     fig.add_trace(go.Surface(
-        x=x_rail, y=y_rail, z=z_rail,
+        x=x_r, y=y_r, z=z_r,
         colorscale=[[0, '#00d2ff'], [1, '#000510']], 
         showscale=False, opacity=0.6, 
         name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # --- 3. FLOOR BRANDING (The Text) 🏷️ ---
-    # We place a giant title in the center of the floor
-    fig.add_trace(go.Scatter3d(
-        x=[0], y=[0], z=[-1.9], # Center of floor, slightly above it
-        mode='text',
-        text=["<b>STARGAZE</b>"], # You can change this to your Project Name
-        textfont=dict(
-            color='rgba(0, 0, 0, 0.1)', # Very faint black (Watermark style)
-            size=100, # Massive size
-            family="Arial Black"
-        ),
-        hoverinfo='skip',
-        name='Logo'
-    ))
-
-    # --- 4. CLEAN COMPASS (Initials Only) ---
+    # --- 3. CLEAN COMPASS (Initials Only) ---
+    # Kept exactly as you had it
     fig.add_trace(go.Scatter3d(
         x=[0, 90, 0, -90],  # N, E, S, W
         y=[90, 0, -90, 0], 
@@ -224,7 +291,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Compass'
     ))
 
-    # --- 5. ADD STARS ---
+    # --- 4. ADD STARS ---
     fig.add_trace(go.Scatter3d(
         x=x, y=y, z=z,
         mode='markers',
@@ -236,7 +303,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Stars'
     ))
 
-    # --- 6. ADD OBSERVER ---
+    # --- 5. ADD OBSERVER ---
     fig.add_trace(go.Scatter3d(
         x=[0], y=[0], z=[-1],
         mode='markers',
@@ -244,7 +311,7 @@ def create_3d_sphere_chart(visible_stars):
         name='Observer'
     ))
 
-    # --- 7. STYLE & CONTROLS ---
+    # --- 6. STYLE & CONTROLS ---
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
@@ -253,7 +320,7 @@ def create_3d_sphere_chart(visible_stars):
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
             
-            # REVERTED TO TURNTABLE (Fixes the "drunk" feeling)
+            # REVERTED TO TURNTABLE (As requested)
             dragmode="turntable", 
             
             camera=dict(
