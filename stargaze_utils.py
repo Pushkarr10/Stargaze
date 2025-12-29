@@ -22,11 +22,16 @@ def load_star_data():
     return bright_stars
 
 # 2. The Calculator
-def calculate_sky_positions(df, lat, lon):
+# Update the definition to accept 'custom_time'
+def calculate_sky_positions(df, lat, lon, custom_time=None):
     ts = load.timescale()
-    t = ts.now()
     
-    # Load Earth positions (Skyfield will download a small file 'de421.bsp' once)
+    # IF the user provided a time, use it. ELSE use "now"
+    if custom_time:
+        t = ts.from_datetime(custom_time)
+    else:
+        t = ts.now()
+
     planets = load('de421.bsp')
     earth = planets['earth']
     
@@ -39,7 +44,6 @@ def calculate_sky_positions(df, lat, lon):
     df['altitude'] = alt.degrees
     df['azimuth'] = az.degrees
     
-    # Filter: Keep only stars above the horizon
     return df[df['altitude'] > 0]
 
 # 3. The Plotter
