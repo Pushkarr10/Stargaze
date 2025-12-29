@@ -343,9 +343,10 @@ else:
 st.title("My Website Main Page")
 
 # In app.py
+
 import streamlit as st
 import stargaze_utils as star_logic
-from datetime import datetime, time  # <--- THIS IMPORT WAS LIKELY MISSING
+from datetime import datetime, time
 import pytz
 from streamlit_folium import st_folium
 import folium
@@ -365,12 +366,10 @@ st.markdown("""
 st.title("✨ Stargaze")
 
 # --- SESSION STATE SETUP ---
-# We use session state to allow the "Now" button to override the slider
 if 'sim_date' not in st.session_state:
     st.session_state.sim_date = datetime.now().date()
     
 if 'sim_time' not in st.session_state:
-    # Round to nearest minute for cleaner slider behavior
     now = datetime.now()
     st.session_state.sim_time = time(now.hour, now.minute)
     
@@ -379,6 +378,7 @@ if 'lon' not in st.session_state: st.session_state.lon = 72.87
 
 # --- HELPER: RESET TO NOW ---
 def reset_to_now():
+    """Forces the slider and date picker to current system time"""
     now = datetime.now()
     st.session_state.sim_date = now.date()
     st.session_state.sim_time = time(now.hour, now.minute)
@@ -386,7 +386,7 @@ def reset_to_now():
 # --- 1. SETTINGS MENU ---
 with st.expander("⚙️ Location & Time", expanded=False):
     
-    # A. MAP PICKER (Unchanged)
+    # A. MAP PICKER
     st.write("**Tap map to set location:**")
     m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=4)
     m.add_child(folium.LatLngPopup())
@@ -398,29 +398,28 @@ with st.expander("⚙️ Location & Time", expanded=False):
 
     st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f}")
 
-    # B. STELLARIUM TIME CONTROLS ⏱️
+    # B. STELLARIUM TIME CONTROLS
     st.markdown("---")
     
-    # Date + Now Button Row
     col1, col2 = st.columns([3, 1])
     with col1:
-        # We bind this widget to 'sim_date' in session_state
         st.date_input("Date", key="sim_date")
     with col2:
-        # The Reset Button
         st.button("↺ Now", on_click=reset_to_now, help="Jump to current time")
 
-    # The Time Slider (Scrubber)
-    # This allows dragging from 00:00 to 23:59
-    current_slider_val = st.slider(
+    st.slider(
         "Time Scrub",
         min_value=time(0, 0),
         max_value=time(23, 59),
-        value=st.session_state.sim_time,
         format="HH:mm",
-        key="sim_time", # Binds to session state
+        key="sim_time",
         help="Drag to change time of day"
     )
+
+    # C. VISUAL SETTINGS (NEW!) 👁️
+    st.markdown("---")
+    # This toggle controls whether lines are drawn
+    show_constellations = st.toggle("Show Constellations", value=True)
 
 # Combine Date and Slider Time into one object
 observer_time = datetime.combine(st.session_state.sim_date, st.session_state.sim_time).replace(tzinfo=pytz.utc)
@@ -428,7 +427,6 @@ observer_time = datetime.combine(st.session_state.sim_date, st.session_state.sim
 # --- 2. MAIN APP ---
 tab1, tab2 = st.tabs(["🪐 3D Immersion", "🗺️ 2D Map"])
 
-# Show a little status text so user knows exactly what time they are seeing
 st.caption(f"Observing Sky at: **{observer_time.strftime('%Y-%m-%d %H:%M')}**")
 
 with st.spinner("Aligning satellites..."):
@@ -436,8 +434,12 @@ with st.spinner("Aligning satellites..."):
     visible_stars = star_logic.calculate_sky_positions(df, st.session_state.lat, st.session_state.lon, observer_time)
 
 with tab1:
-    fig_3d = star_logic.create_3d_sphere_chart(visible_stars)
-    # Ensure legend is off and height matches
+    # PASS THE SWITCH VALUE HERE
+    fig_3d = star_logic.create_3d_sphere_chart(
+        visible_stars, 
+        show_constellations=show_constellations
+    )
+    
     fig_3d.update_layout(height=500, showlegend=False) 
     st.plotly_chart(fig_3d, use_container_width=True)
 
