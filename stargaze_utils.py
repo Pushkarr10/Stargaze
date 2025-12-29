@@ -121,3 +121,65 @@ def create_star_chart(visible_stars):
         )
 
     return fig
+    # In stargaze_utils.py
+
+def create_3d_sphere_chart(visible_stars):
+    # 1. CONVERT TO 3D (CARTESIAN)
+    # Convert degrees to radians for the math
+    alt_rad = np.radians(visible_stars['altitude'])
+    az_rad = np.radians(visible_stars['azimuth'])
+    
+    r = 100 # Radius of the sphere (arbitrary size)
+    
+    # Standard Spherical -> Cartesian formulas
+    # We swap sin/cos on X/Y to align 0 degrees with North
+    x = r * np.cos(alt_rad) * np.sin(az_rad)
+    y = r * np.cos(alt_rad) * np.cos(az_rad)
+    z = r * np.sin(alt_rad)
+    
+    fig = go.Figure()
+
+    # 2. PLOT THE STARS ON THE SPHERE SURFACE
+    fig.add_trace(go.Scatter3d(
+        x=x, y=y, z=z,
+        mode='markers',
+        marker=dict(
+            size=np.clip(5 - visible_stars['mag'], 1, 5), # Smaller dots look better in 3D
+            color='white',
+            opacity=0.8,
+            line=dict(width=0)
+        ),
+        hovertext=visible_stars['proper'],
+        name='Stars'
+    ))
+
+    # 3. ADD THE "OBSERVER" (EARTH)
+    # A small blue dot in the center (0,0,0) to show where "we" are
+    fig.add_trace(go.Scatter3d(
+        x=[0], y=[0], z=[0],
+        mode='markers',
+        marker=dict(size=5, color='blue'),
+        name='Observer',
+        hoverinfo='skip'
+    ))
+
+    # 4. STYLE THE COSMOS
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='black',
+        scene=dict(
+            bgcolor='#000510', # Deep space blue background
+            # Hide all axes/grids for total immersion
+            xaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
+            # Set the default camera view
+            camera=dict(
+                eye=dict(x=0.5, y=0.5, z=0.5) # Zoomed out slightly
+            )
+        ),
+        margin=dict(l=0, r=0, b=0, t=0), # Full bleed
+        height=700
+    )
+    
+    return fig
