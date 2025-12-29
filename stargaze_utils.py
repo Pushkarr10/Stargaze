@@ -129,27 +129,20 @@ def create_star_chart(visible_stars):
         )
 
     return fig
-    # In stargaze_utils.py
-
-# In stargaze_utils.py
-
-# In stargaze_utils.py
-
-# In stargaze_utils.py
-
-# In stargaze_utils.py
+ # In stargaze_utils.py
 
 def generate_terrain():
     # 1. High Resolution Grid for jagged details
-    xy_range = np.linspace(-100, 100, 150) # Increased res from 100 to 150
+    xy_range = np.linspace(-100, 100, 150)
     x_grid, y_grid = np.meshgrid(xy_range, xy_range)
     
     # Calculate distance from center for every point
     r = np.sqrt(x_grid**2 + y_grid**2)
     
-    # 2. Base Layer: The "Valley Floor" (Slightly bumpy grass)
-    # Small noise so it's not perfectly flat
-    z_grid = np.random.normal(0, 0.4, z_grid.shape)
+    # 2. Base Layer: The "Valley Floor"
+    # FIX: We use 'x_grid.shape' here because z_grid doesn't exist yet
+    z_grid = np.random.normal(0, 0.4, x_grid.shape)
+    
     # Add slight rolling bumps
     z_grid += np.sin(x_grid/7) * np.cos(y_grid/7) * 1.5
 
@@ -159,7 +152,6 @@ def generate_terrain():
     mountain_mask = r > valley_radius
     
     # The math: (distance past valley edge)^Power
-    # Increasing the power (e.g., to 2.5 or 3) makes them steeper walls.
     steepness_factor = 2.2 
     height_multiplier = 0.05
     
@@ -176,7 +168,7 @@ def generate_terrain():
     z_grid[r > 98] = np.nan
     
     return x_grid, y_grid, z_grid
-
+    
 def create_3d_sphere_chart(visible_stars):
     # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
