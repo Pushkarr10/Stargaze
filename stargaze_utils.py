@@ -123,28 +123,45 @@ def create_star_chart(visible_stars):
     return fig
     # In stargaze_utils.py
 
+# In stargaze_utils.py
+
 def create_3d_sphere_chart(visible_stars):
-    # 1. CONVERT TO 3D (CARTESIAN)
-    # Convert degrees to radians for the math
+    # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
+    r_sphere = 100 # Star distance
     
-    r = 100 # Radius of the sphere (arbitrary size)
-    
-    # Standard Spherical -> Cartesian formulas
-    # We swap sin/cos on X/Y to align 0 degrees with North
-    x = r * np.cos(alt_rad) * np.sin(az_rad)
-    y = r * np.cos(alt_rad) * np.cos(az_rad)
-    z = r * np.sin(alt_rad)
+    x = r_sphere * np.cos(alt_rad) * np.sin(az_rad)
+    y = r_sphere * np.cos(alt_rad) * np.cos(az_rad)
+    z = r_sphere * np.sin(alt_rad)
     
     fig = go.Figure()
 
-    # 2. PLOT THE STARS ON THE SPHERE SURFACE
+    # 2. ADD THE GROUND (NEW!) 🌍
+    # We create a flat circle at Z=0 to represent the horizon
+    # This involves a bit of geometry math to draw a filled circle
+    theta = np.linspace(0, 2*np.pi, 100)
+    r_ground = np.linspace(0, 100, 20)
+    theta_grid, r_grid = np.meshgrid(theta, r_ground)
+    x_ground = r_grid * np.cos(theta_grid)
+    y_ground = r_grid * np.sin(theta_grid)
+    z_ground = np.zeros_like(x_ground) # Z is always 0 (flat)
+
+    fig.add_trace(go.Surface(
+        x=x_ground, y=y_ground, z=z_ground,
+        colorscale=[[0, '#151b1f'], [1, '#151b1f']], # Dark gray ground
+        showscale=False,
+        opacity=0.9, # Slightly see-through
+        name='Ground',
+        hoverinfo='skip'
+    ))
+
+    # 3. ADD STARS
     fig.add_trace(go.Scatter3d(
         x=x, y=y, z=z,
         mode='markers',
         marker=dict(
-            size=np.clip(5 - visible_stars['mag'], 1, 5), # Smaller dots look better in 3D
+            size=np.clip(5 - visible_stars['mag'], 1, 5),
             color='white',
             opacity=0.8,
             line=dict(width=0)
@@ -153,32 +170,27 @@ def create_3d_sphere_chart(visible_stars):
         name='Stars'
     ))
 
-    # 3. ADD THE "OBSERVER" (EARTH)
-    # A small blue dot in the center (0,0,0) to show where "we" are
+    # 4. ADD OBSERVER (You)
     fig.add_trace(go.Scatter3d(
         x=[0], y=[0], z=[0],
         mode='markers',
-        marker=dict(size=5, color='blue'),
-        name='Observer',
-        hoverinfo='skip'
+        marker=dict(size=5, color='#00ff00'), # Green dot for user
+        name='Observer'
     ))
 
-    # 4. STYLE THE COSMOS
+    # 5. STYLE
     fig.update_layout(
         template="plotly_dark",
-        paper_bgcolor='black',
         scene=dict(
-            bgcolor='#000510', # Deep space blue background
-            # Hide all axes/grids for total immersion
-            xaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
-            yaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
-            zaxis=dict(visible=False, showgrid=False, zeroline=False, showbackground=False),
-            # Set the default camera view
+            bgcolor='#000510',
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
             camera=dict(
-                eye=dict(x=0.5, y=0.5, z=0.5) # Zoomed out slightly
+                eye=dict(x=0.1, y=0.1, z=0.1) # Start view CLOSE to the ground (Human view)
             )
         ),
-        margin=dict(l=0, r=0, b=0, t=0), # Full bleed
+        margin=dict(l=0, r=0, b=0, t=0),
         height=700
     )
     
