@@ -335,12 +335,8 @@ def create_3d_sphere_chart(visible_stars):
 
 # Update function signature to accept the switch
 
-    # --- F. CONSTELLATIONS (NEW!) ---
     if show_constellations:
         fig = add_constellations(fig, visible_stars)
-
-    # ... [Keep Observer and Layout code] ...
-    
+        
     return fig
-   
     
