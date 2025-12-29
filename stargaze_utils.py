@@ -8,20 +8,20 @@ import streamlit as st # Only needed if you use @st.cache_data
 
 @st.cache_data
 def load_star_data():
-    # 1. Use the correct .csv URL (not .gz)
-    url = "https://raw.githubusercontent.com/astronexus/HYG-Database/master/hygdata_v3.csv"
-    
-    # 2. Add 'storage_options' to fake a browser User-Agent
-    # This prevents the "HTTP Error 403/429" from GitHub
-    df = pd.read_csv(
-        url, 
-        usecols=['id', 'proper', 'ra', 'dec', 'mag'],
-        storage_options={'User-Agent': 'Mozilla/5.0'} 
-    )
-    
-    bright_stars = df[df['mag'] < 6.0].copy()
-    bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
-    return bright_stars
+   # In stargaze_utils.py
+
+@st.cache_data
+def load_star_data():
+    # EMERGENCY FALLBACK: Manually create a tiny database of 10 bright stars
+    # This requires NO download and NO external file.
+    data = {
+        'id': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        'proper': ['Sun', 'Sirius', 'Canopus', 'Arcturus', 'Vega', 'Capella', 'Rigel', 'Procyon', 'Betelgeuse', 'Altair'],
+        'ra': [0.0, 6.75, 6.40, 14.26, 18.62, 5.27, 5.24, 7.65, 5.92, 19.85],
+        'dec': [0.0, -16.72, -52.70, 19.18, 38.78, 46.00, -8.20, 5.21, 7.41, 8.87],
+        'mag': [-26.7, -1.46, -0.74, -0.05, 0.03, 0.08, 0.13, 0.34, 0.50, 0.77]
+    }
+    return pd.DataFrame(data)
 
 # 2. The Calculator
 def calculate_sky_positions(df, lat, lon):
