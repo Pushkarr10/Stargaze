@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np  # <-- This was missing!
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
 import streamlit as st
