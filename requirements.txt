@@ -8,3 +8,5 @@ bcrypt
 pandas
 plotly
 skyfield
+streamlit-folium
+folium
