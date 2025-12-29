@@ -340,20 +340,26 @@ else:
 
 st.title("My Website Main Page")
 
-# Create a checkbox or a new tab to show the star map
-if st.checkbox("Open Stargaze Simulation"):
-    
-    # 1. Call the functions from your other file
-    with st.spinner("Aligning satellites..."):
-        df = star_logic.load_star_data()
-        
-        # Hardcoded location (or get from user input in main.py)
-        visible_stars = star_logic.calculate_sky_positions(df, 19.07, 72.87)
-        
-        # Get the figure
-        fig = star_logic.create_star_chart(visible_stars)
-    
-    # 2. Render it here
-    st.plotly_chart(fig, use_container_width=True)
+# In app.py
 
-# ... rest of your code ...
+
+
+st.set_page_config(layout="wide")
+st.title("✨ Stargaze Simulation")
+
+# Load data once
+with st.spinner("Calibrating Telescope..."):
+    df = star_logic.load_star_data()
+    visible_stars = star_logic.calculate_sky_positions(df, 19.07, 72.87)
+
+# Let user choose the view
+view_mode = st.radio("Select View Mode:", ["2D Sky Map (Scientific)", "3D Celestial Sphere (Immersive)"], horizontal=True)
+
+if "2D" in view_mode:
+    # Render the flat circular map
+    fig = star_logic.create_star_chart(visible_stars)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    # Render the 3D rotating sphere
+    fig = star_logic.create_3d_sphere_chart(visible_stars)
+    st.plotly_chart(fig, use_container_width=True)
