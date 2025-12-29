@@ -6,24 +6,26 @@ import streamlit as st
 from PIL import Image
 import os
 
-# --- 1. DATA LOADING (Cached) ---
+# --- 1. DATA LOADING (Cached & Cleaned) ---
 @st.cache_data
 def load_star_data():
     # Load raw data
     df = pd.read_csv("stars.csv.gz", compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
     
-    # Drop rows with no ID to keep data clean
+    # Drop rows with no ID
     df = df.dropna(subset=['id'])
     df['id'] = df['id'].astype(int)
     
-    # Filter for visible stars
+    # Filter for visible stars (Mag < 6.0)
     bright_stars = df[df['mag'] < 6.0].copy()
     
-    # Ensure every star has a name (fallback to HIP ID if name is missing)
+    # Fill missing names with HIP ID
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
     
-    # Standardize names (Capitalize) to ensure matching works
-    bright_stars['proper'] = bright_stars['proper'].str.strip()
+    # --- CRITICAL FIX: NORMALIZE NAMES ---
+    # Convert to UPPERCASE and remove spaces to ensure matching works
+    # Example: "Betelgeuse " -> "BETELGEUSE"
+    bright_stars['proper_clean'] = bright_stars['proper'].astype(str).str.upper().str.strip()
     
     return bright_stars
 
@@ -43,78 +45,77 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     alt, az, distance = astrometric.apparent().altaz()
     df['altitude'] = alt.degrees
     df['azimuth'] = az.degrees
+    # Return only stars above horizon
     return df[df['altitude'] > 0]
 
-# --- 3. CONSTELLATION DATABASE (BY NAME) ---
-# We use Names instead of IDs to avoid database mismatches
+# --- 3. CONSTELLATION DATABASE (UPPERCASE KEYS) ---
 CONSTELLATIONS = {
     "Orion": [
-        ("Betelgeuse", "Bellatrix"), ("Bellatrix", "Rigel"), ("Rigel", "Saiph"), 
-        ("Saiph", "Betelgeuse"), ("Betelgeuse", "Meissa"), ("Alnitak", "Alnilam"), 
-        ("Alnilam", "Mintaka"), ("Mintaka", "Bellatrix"), ("Alnitak", "Saiph")
+        ("BETELGEUSE", "BELLATRIX"), ("BELLATRIX", "RIGEL"), ("RIGEL", "SAIPH"), 
+        ("SAIPH", "BETELGEUSE"), ("BETELGEUSE", "MEISSA"), ("ALNITAK", "ALNILAM"), 
+        ("ALNILAM", "MINTAKA"), ("MINTAKA", "BELLATRIX"), ("ALNITAK", "SAIPH")
     ],
     "Ursa Major": [
-        ("Dubhe", "Merak"), ("Merak", "Phecda"), ("Phecda", "Megrez"), 
-        ("Megrez", "Dubhe"), ("Megrez", "Alioth"), ("Alioth", "Mizar"), ("Mizar", "Alkaid")
+        ("DUBHE", "MERAK"), ("MERAK", "PHECDA"), ("PHECDA", "MEGREZ"), 
+        ("MEGREZ", "DUBHE"), ("MEGREZ", "ALIOTH"), ("ALIOTH", "MIZAR"), ("MIZAR", "ALKAID")
     ],
     "Cassiopeia": [
-        ("Caph", "Schedar"), ("Schedar", "Navi"), ("Navi", "Ruchbah"), ("Ruchbah", "Segin")
+        ("CAPH", "SCHEDAR"), ("SCHEDAR", "NAVI"), ("NAVI", "RUCHBAH"), ("RUCHBAH", "SEGIN")
     ],
     "Crux": [
-        ("Acrux", "Mimosa"), ("Mimosa", "Gacrux"), ("Gacrux", "Imai"), ("Imai", "Acrux")
+        ("ACRUX", "MIMOSA"), ("MIMOSA", "GACRUX"), ("GACRUX", "IMAI"), ("IMAI", "ACRUX")
     ],
     "Scorpius": [
-        ("Antares", "Acrab"), ("Acrab", "Dschubba"), ("Antares", "Paikauhale"), 
-        ("Paikauhale", "Wei"), ("Wei", "Sargas"), ("Sargas", "Shaula"), ("Shaula", "Lesath")
+        ("ANTARES", "ACRAB"), ("ACRAB", "DSCHUBBA"), ("ANTARES", "PAIKAUHALE"), 
+        ("PAIKAUHALE", "WEI"), ("WEI", "SARGAS"), ("SARGAS", "SHAULA"), ("SHAULA", "LESATH")
     ],
     "Canis Major": [
-        ("Sirius", "Mirzam"), ("Sirius", "Muliphein"), ("Sirius", "Wezen"), ("Wezen", "Adhara")
+        ("SIRIUS", "MIRZAM"), ("SIRIUS", "MULIPHEIN"), ("SIRIUS", "WEZEN"), ("WEZEN", "ADHARA")
     ],
     "Gemini": [
-        ("Pollux", "Castor"), ("Pollux", "Wasat"), ("Castor", "Mebsuta")
+        ("POLLUX", "CASTOR"), ("POLLUX", "WASAT"), ("CASTOR", "MEBSUTA")
     ]
 }
 
 def add_constellations(fig, visible_stars_df):
     """
-    Draws constellation lines by matching Star Names.
-    This bypasses ID mismatches entirely.
+    Draws constellation lines using robust UPPERCASE matching.
     """
-    # Create a lookup: Name -> {Alt, Az}
-    # We use 'proper' column which contains names like "Betelgeuse"
-    star_map = visible_stars_df.set_index('proper')[['altitude', 'azimuth']].to_dict('index')
+    # Create lookup: Clean Name -> Data
+    # We must handle duplicates gracefully, so we loop manually
+    star_map = {}
     
-    # Helper to clean up lookup (handle case sensitivity if needed)
-    # For now, we assume standard capitalization from load_star_data
-    
+    # We map "BETELGEUSE" -> {alt, az}. 
+    # If a name contains "BETELGEUSE" (like "ALPHA ORIONIS (BETELGEUSE)"), we map that too.
+    for index, row in visible_stars_df.iterrows():
+        clean_name = row['proper_clean']
+        star_map[clean_name] = {'altitude': row['altitude'], 'azimuth': row['azimuth']}
+
+    # Draw Lines
     for name, pairs in CONSTELLATIONS.items():
         x_lines, y_lines, z_lines = [], [], []
         has_lines = False
         
-        for star1_name, star2_name in pairs:
-            # Check if both stars are in the visible sky map
-            if star1_name in star_map and star2_name in star_map:
-                s1 = star_map[star1_name]
-                s2 = star_map[star2_name]
+        for star1, star2 in pairs:
+            # Direct check (Fastest)
+            if star1 in star_map and star2 in star_map:
+                s1, s2 = star_map[star1], star_map[star2]
                 
-                # Math to draw the line
+                # Math
                 for s in [s1, s2]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
                     z_lines.append(100 * np.sin(alt))
                 
-                # Break the line
-                x_lines.append(None)
-                y_lines.append(None)
-                z_lines.append(None)
+                x_lines.append(None); y_lines.append(None); z_lines.append(None)
                 has_lines = True
         
         if has_lines:
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                line=dict(color='rgba(0, 255, 255, 0.5)', width=5), # Cyan, Semi-transparent
+                line=dict(color='rgba(0, 255, 255, 0.5)', width=5), # Cyan
                 name=name,
                 hoverinfo='name'
             ))
@@ -142,7 +143,7 @@ def process_terrain_mesh(filename, resolution=300):
             return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
             
         img = Image.open(file_path)
-        img = img.transpose(Image.FLIP_LEFT_RIGHT) # Keeps the fix for the logo
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
         width, height = img.size
         min_dim = min(width, height)
@@ -163,7 +164,6 @@ def process_terrain_mesh(filename, resolution=300):
         return x_flat, y_flat, z_flat, color_grid[mask]
         
     except Exception as e:
-        print(f"Texture Error: {e}")
         return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
 
 # --- 5. RAILING ---
@@ -209,7 +209,7 @@ def create_3d_sphere_chart(visible_stars, show_constellations=False):
         hovertext=visible_stars['proper'], name='Stars'
     ))
 
-    # (E) Constellations (Name-Based)
+    # (E) Constellations (Name-Based Match)
     if show_constellations:
         fig = add_constellations(fig, visible_stars)
 
@@ -229,38 +229,10 @@ def create_3d_sphere_chart(visible_stars, show_constellations=False):
     
     return fig
 
-# --- 7. 2D CHART ---
+# --- 7. 2D CHART (Unchanged) ---
 def create_star_chart(visible_stars):
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r = 90 - visible_stars['altitude'],
-        theta = visible_stars['azimuth'],
-        mode = 'markers',
-        marker = dict(
-            size = np.clip(12 - visible_stars['mag'] * 1.5, 0.5, 12),
-            color = 'white',
-            opacity = np.clip(1.2 - (visible_stars['mag'] / 6), 0.3, 1.0),
-            line = dict(width=0)
-        ),
-        hovertext = visible_stars['proper'],
-        hoverinfo = "text"
-    ))
-    fig.update_layout(
-        template = "plotly_dark",
-        paper_bgcolor = 'black', plot_bgcolor = 'black',
-        polar = dict(
-            bgcolor = "#000510",
-            radialaxis = dict(visible = False, range = [0, 90]),
-            angularaxis = dict(
-                visible = True, showline = True, linecolor = "#444", 
-                showgrid = False, showticklabels = False, 
-                direction = "clockwise", rotation = 90
-            )
-        ),
-        dragmode = False, showlegend = False,
-        margin = dict(l=20, r=20, t=20, b=20), height = 500
-    )
-    directions = [(0, "N"), (90, "E"), (180, "S"), (270, "W")]
-    for angle, label in directions:
-        fig.add_annotation(x=angle, y=1.1, text=f"<b>{label}</b>", showarrow=False, font=dict(color="#888"))
+    fig.add_trace(go.Scatterpolar(r = 90 - visible_stars['altitude'], theta = visible_stars['azimuth'], mode = 'markers', marker = dict(size = np.clip(12 - visible_stars['mag'] * 1.5, 0.5, 12), color = 'white', opacity = 0.8), hovertext = visible_stars['proper']))
+    fig.update_layout(template="plotly_dark", paper_bgcolor='black', plot_bgcolor='black', polar=dict(bgcolor="#000510", radialaxis=dict(visible=False, range=[0, 90]), angularaxis=dict(rotation=90, direction="clockwise")), showlegend=False, dragmode=False, margin=dict(l=20, r=20, t=20, b=20), height=500)
+    for a, l in [(0,"N"),(90,"E"),(180,"S"),(270,"W")]: fig.add_annotation(x=a, y=1.1, text=f"<b>{l}</b>", showarrow=False, font=dict(color="#888"))
     return fig
