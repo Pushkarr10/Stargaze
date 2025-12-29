@@ -7,6 +7,7 @@ import re
 import base64
 from scipy.spatial import Delaunay
 from supabase import create_client, Client
+import stargaze_utils as star_logic
 
 # =================================================================
 # 🧬 ZONE 1: THE BACKBONE (Geometric Engine & Validators)
@@ -332,3 +333,26 @@ else:
     else:
         st.markdown("<h2 style='font-family:Lobster; text-align:center;'>🎨 The Archive</h2>", unsafe_allow_html=True)
         st.info("Accessing long-term storage... (Feature arriving in next update)")
+  # Import your new file
+
+# ... your existing UI code ...
+
+st.title("My Website Main Page")
+
+# Create a checkbox or a new tab to show the star map
+if st.checkbox("Open Stargaze Simulation"):
+    
+    # 1. Call the functions from your other file
+    with st.spinner("Aligning satellites..."):
+        df = star_logic.load_star_data()
+        
+        # Hardcoded location (or get from user input in main.py)
+        visible_stars = star_logic.calculate_sky_positions(df, 19.07, 72.87)
+        
+        # Get the figure
+        fig = star_logic.create_star_chart(visible_stars)
+    
+    # 2. Render it here
+    st.plotly_chart(fig, use_container_width=True)
+
+# ... rest of your code ...
