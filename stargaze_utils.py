@@ -3,7 +3,6 @@ import numpy as np  # <-- This was missing!
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
 import streamlit as st
-from scipy.ndimage import gaussian_filter
 
 # 1. The Loader (Emergency Version - No Download Needed)
 @st.cache_data
@@ -132,128 +131,112 @@ def create_star_chart(visible_stars):
     return fig
  # In stargaze_utils.py
 # In stargaze_utils.py
-# --- 3. THE NEW TERRAIN GENERATOR (From Specialist) ---
-def generate_smooth_terrain():
-    # Grid Settings (We use 200x200 for nice detail)
-    resolution = 200
-    radius = 100 # Matches our star sphere size
-    
-    # 1. Create the Coordinate Grid
-    xy = np.linspace(-radius, radius, resolution)
-    x_grid, y_grid = np.meshgrid(xy, xy)
-    
-    # 2. Math Coordinates (for the Sine waves)
-    # We map our -100 to 100 grid to a 0 to 4pi range for the math
-    x_math = np.interp(x_grid, (x_grid.min(), x_grid.max()), (0, 4 * np.pi))
-    y_math = np.interp(y_grid, (y_grid.min(), y_grid.max()), (0, 4 * np.pi))
-    
-    # 3. GENERATE HEIGHTS (The Specialist's "Octave" Logic)
-    # Layer 1: Big Mountains (40% weight)
-    z1 = 30 * np.sin(x_math / 2) * np.cos(y_math / 2)
-    z1 = gaussian_filter(z1, sigma=8) # Smooth it out
-    
-    # Layer 2: Medium Hills (35% weight)
-    z2 = 15 * np.sin(x_math) * np.cos(y_math)
-    z2 = gaussian_filter(z2, sigma=4)
-    
-    # Layer 3: Small bumps (25% weight)
-    z3 = 8 * np.sin(2*x_math) * np.cos(2*y_math)
-    z3 = gaussian_filter(z3, sigma=2)
-    
-    # Combine layers
-    z_grid = 0.4 * z1 + 0.35 * z2 + 0.25 * z3
-    
-    # 4. Normalize Heights (Keep mountains reasonable, e.g., max 30 units high)
-    z_grid = ((z_grid - z_grid.min()) / (z_grid.max() - z_grid.min())) * 30
-    z_grid -= 10 # Shift down so water is at 0
-    
-    # 5. THE CIRCULAR CUT (Our Stargaze Logic)
-    # Remove corners so it fits inside the dome
-    r = np.sqrt(x_grid**2 + y_grid**2)
-    z_grid[r > 95] = np.nan
-    
-    return x_grid, y_grid, z_grid
 
-# --- 4. COLOR GENERATOR (From Specialist) ---
-def get_terrain_colors(z_grid):
-    # Create an empty color array
-    colors = np.zeros((*z_grid.shape, 3))
+def generate_observatory_deck():
+    # PART A: THE FLOOR (A flat disk)
+    # We use polar coordinates to make a perfect circle mesh
+    r_floor = np.linspace(0, 20, 10)  # Radius 0 to 20
+    theta_floor = np.linspace(0, 2*np.pi, 30) # Full circle
+    r_grid, theta_grid = np.meshgrid(r_floor, theta_floor)
     
-    # Define thresholds (Water, Grass, Rock, Snow)
-    # We tweak these slightly for "Night Mode" (Darker colors)
-    
-    # Water (< 2 height): Dark Blue
-    mask = z_grid < 2
-    colors[mask] = [0.05, 0.1, 0.3] 
-    
-    # Grass (2 - 12 height): Dark Forest Green
-    mask = (z_grid >= 2) & (z_grid < 12)
-    colors[mask] = [0.1, 0.25, 0.1] 
-    
-    # Rock (12 - 20 height): Dark Grey/Brown
-    mask = (z_grid >= 12) & (z_grid < 20)
-    colors[mask] = [0.25, 0.2, 0.15]
-    
-    # Snow (> 20 height): Pale Blue-Grey (Not bright white)
-    mask = z_grid >= 20
-    colors[mask] = [0.6, 0.7, 0.8]
-    
-    return colors
+    x_floor = r_grid * np.cos(theta_grid)
+    y_floor = r_grid * np.sin(theta_grid)
+    z_floor = np.zeros_like(x_floor) - 2 # Place it slightly below camera (z=-2)
 
-# --- 5. THE 3D PLOTTER (Merged) ---
+    # PART B: THE RAILING (A ring wall)
+    # A cylinder at radius 20
+    z_rail = np.linspace(-2, 0, 5) # From floor height (-2) up to waist height (0)
+    theta_rail = np.linspace(0, 2*np.pi, 50)
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    
+    x_rail = 20 * np.cos(theta_grid_rail) # Radius is locked at 20
+    y_rail = 20 * np.sin(theta_grid_rail)
+    # The Z height is just the grid we made
+    
+    return (x_floor, y_floor, z_floor), (x_rail, y_rail, z_grid_rail)
+
 def create_3d_sphere_chart(visible_stars):
-    fig = go.Figure()
-
-    # A. ADD STARS
+    # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
-    r_sphere = 100 
+    r_sphere = 100 # Star distance
     
-    xs = r_sphere * np.cos(alt_rad) * np.sin(az_rad)
-    ys = r_sphere * np.cos(alt_rad) * np.cos(az_rad)
-    zs = r_sphere * np.sin(alt_rad)
+    x = r_sphere * np.cos(alt_rad) * np.sin(az_rad)
+    y = r_sphere * np.cos(alt_rad) * np.cos(az_rad)
+    z = r_sphere * np.sin(alt_rad)
     
+    fig = go.Figure()
+
+    # ... inside create_3d_sphere_chart ...
+
+   # ... inside create_3d_sphere_chart ...
+
+   # ... inside create_3d_sphere_chart ...
+
+   # ... inside create_3d_sphere_chart ...
+
+    # 2. ADD THE OBSERVATORY DECK (NEW!) 🏟️
+    (x_floor, y_floor, z_floor), (x_rail, y_rail, z_rail) = generate_observatory_deck()
+    
+    # Trace A: The Floor (Dark Tiled look)
+    fig.add_trace(go.Surface(
+        x=x_floor, y=y_floor, z=z_floor,
+        colorscale=[[0, '#0f111a'], [1, '#1a1d2e']], # Dark metallic blue
+        showscale=False,
+        opacity=1.0,
+        name='Deck Floor',
+        hoverinfo='skip',
+        lighting=dict(ambient=0.3, diffuse=0.6, roughness=0.1, specular=0.5) # Shiny floor
+    ))
+
+    # Trace B: The Railing (Glowing Rim)
+    fig.add_trace(go.Surface(
+        x=x_rail, y=y_rail, z=z_rail,
+        colorscale=[[0, '#00d2ff'], [1, '#00d2ff']], # Neon Cyan/Blue
+        showscale=False,
+        opacity=0.4, # Semi-transparent glass look
+        name='Railing',
+        hoverinfo='skip'
+    ))
+    
+
+    # 3. ADD STARS
     fig.add_trace(go.Scatter3d(
-        x=xs, y=ys, z=zs,
+        x=x, y=y, z=z,
         mode='markers',
-        marker=dict(size=np.clip(5 - visible_stars['mag'], 1, 5), color='white', opacity=0.8),
+        marker=dict(
+            size=np.clip(5 - visible_stars['mag'], 1, 5),
+            color='white',
+            opacity=0.8,
+            line=dict(width=0)
+        ),
         hovertext=visible_stars['proper'],
         name='Stars'
     ))
 
-    # B. ADD SMOOTH TERRAIN
-    x_g, y_g, z_g = generate_smooth_terrain()
-    color_map = get_terrain_colors(z_g)
-    
-    # Convert colors for Plotly
-    surface_color = np.zeros((*color_map.shape[:2], 3), dtype=np.uint8)
-    surface_color[:,:,0] = (color_map[:,:,0] * 255).astype(np.uint8)
-    surface_color[:,:,1] = (color_map[:,:,1] * 255).astype(np.uint8)
-    surface_color[:,:,2] = (color_map[:,:,2] * 255).astype(np.uint8)
-
-    fig.add_trace(go.Surface(
-        x=x_g, y=y_g, z=z_g,
-        surfacecolor=surface_color,
-        colorscale='Viridis', # Ignored because we use surfacecolor
-        showscale=False,
-        name='Terrain',
-        hoverinfo='skip',
-        lighting=dict(ambient=0.2, diffuse=0.7, roughness=0.8, specular=0.1)
+    # 4. ADD OBSERVER (You)
+    fig.add_trace(go.Scatter3d(
+        x=[0], y=[0], z=[0],
+        mode='markers',
+        marker=dict(size=5, color='#00ff00'), # Green dot for user
+        name='Observer'
     ))
-
-    # C. LAYOUT
+    
+    # 5. STYLE
     fig.update_layout(
         template="plotly_dark",
+       # In stargaze_utils.py -> create_3d_sphere_chart
+
+    # ... inside fig.update_layout( ...
         scene=dict(
             bgcolor='#000510',
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
-            camera=dict(eye=dict(x=0.5, y=0.5, z=0.2)) # Nice low angle
+            camera=dict(eye=dict(x=0.1, y=0.1, z=0.1))
         ),
-        showlegend=False,
+        showlegend=False,  # <--- ADD THIS LINE to remove the sidebar key
         margin=dict(l=0, r=0, b=0, t=0),
         height=500
     )
     return fig
-    
