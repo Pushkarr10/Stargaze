@@ -343,15 +343,14 @@ else:
 st.title("My Website Main Page")
 
 # In app.py
-
 import streamlit as st
 import stargaze_utils as star_logic
-from datetime import datetime
+from datetime import datetime, time  # <--- THIS IMPORT WAS LIKELY MISSING
 import pytz
 from streamlit_folium import st_folium
 import folium
 
-st.set_page_config(layout="wide", page_title="StarGaze ")
+st.set_page_config(layout="wide", page_title="Stargaze Mobile")
 
 # CSS adjustments
 st.markdown("""
@@ -369,10 +368,12 @@ st.title("✨ Stargaze")
 # We use session state to allow the "Now" button to override the slider
 if 'sim_date' not in st.session_state:
     st.session_state.sim_date = datetime.now().date()
+    
 if 'sim_time' not in st.session_state:
     # Round to nearest minute for cleaner slider behavior
     now = datetime.now()
     st.session_state.sim_time = time(now.hour, now.minute)
+    
 if 'lat' not in st.session_state: st.session_state.lat = 19.07
 if 'lon' not in st.session_state: st.session_state.lon = 72.87
 
@@ -397,7 +398,7 @@ with st.expander("⚙️ Location & Time", expanded=False):
 
     st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f}")
 
-    # B. STELLARIUM TIME CONTROLS (NEW!) ⏱️
+    # B. STELLARIUM TIME CONTROLS ⏱️
     st.markdown("---")
     
     # Date + Now Button Row
