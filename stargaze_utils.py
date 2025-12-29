@@ -5,149 +5,47 @@ from skyfield.api import Star, load, wgs84
 import streamlit as st
 from PIL import Image
 import os
-# --- CONSTELLATION DATABASE (HIP IDs) ---
-# Format: [ (Start_Star_HIP, End_Star_HIP), ... ]
+# --- CONSTELLATION DATABASE ---
 CONSTELLATIONS = {
-    "Orion (The Hunter)": [
-        (27989, 25336), # Betelgeuse -> Bellatrix
-        (25336, 24436), # Bellatrix -> Rigel
-        (24436, 27366), # Rigel -> Saiph
-        (27366, 27989), # Saiph -> Betelgeuse
-        (27989, 28614), # Betelgeuse -> Meissa (Head)
-        (26311, 26727), # Alnitak -> Alnilam (Belt)
-        (26727, 25930), # Alnilam -> Mintaka (Belt)
-        (25930, 25336), # Mintaka -> Bellatrix
-        (26311, 27366), # Alnitak -> Saiph
-    ],
-    "Ursa Major (Big Dipper)": [
-        (54061, 53910), # Dubhe -> Merak
-        (53910, 58001), # Merak -> Phecda
-        (58001, 59774), # Phecda -> Megrez
-        (59774, 54061), # Megrez -> Dubhe (The Cup)
-        (59774, 62956), # Megrez -> Alioth
-        (62956, 65378), # Alioth -> Mizar
-        (65378, 67301), # Mizar -> Alkaid (Handle)
-    ],
-    "Ursa Minor (Little Dipper)": [
-        (11767, 85822), # Polaris -> Yildun
-        (85822, 82080), # Yildun -> Epsilon UMi
-        (82080, 77055), # Epsilon -> Zeta UMi
-        (77055, 72607), # Zeta -> Kochab
-        (72607, 75097), # Kochab -> Pherkad
-        (75097, 82080), # Pherkad -> Epsilon (Box closure)
-    ],
-    "Cassiopeia (The Queen)": [
-        (11569, 94263),  # Caph -> Schedar
-        (94263, 4427),   # Schedar -> Navi
-        (4427, 2685),    # Navi -> Ruchbah
-        (2685, 8886),    # Ruchbah -> Segin
-    ],
-    "Cygnus (The Swan)": [
-        (102098, 99639), # Deneb -> Sadr (Tail to Body)
-        (99639, 95947),  # Sadr -> Albireo (Body to Head)
-        (100453, 99639), # Aljanah -> Sadr (Wing 1)
-        (99639, 97165),  # Sadr -> Fawaris (Wing 2)
-    ],
-    "Scorpius (The Scorpion)": [
-        (80763, 78820),  # Antares -> Acrab (Head)
-        (78820, 78401),  # Acrab -> Dschubba
-        (80763, 81266),  # Antares -> Paikauhale (Body)
-        (81266, 82396),  # Body -> Wei
-        (82396, 82514),  # Wei -> Zeta Sco
-        (82514, 84143),  # Zeta -> Eta Sco
-        (84143, 86228),  # Eta -> Sargas
-        (86228, 87073),  # Sargas -> Iota Sco
-        (87073, 86670),  # Iota -> Kappa Sco
-        (86670, 85927),  # Kappa -> Shaula (Stinger)
-        (85927, 85696),  # Shaula -> Lesath (Stinger tip)
-    ],
-    "Leo (The Lion)": [
-        (49669, 50583),  # Regulus -> Algieba (Body)
-        (50583, 54872),  # Algieba -> Zosma (Back)
-        (54872, 57632),  # Zosma -> Denebola (Tail)
-        (54872, 54879),  # Zosma -> Chertan (Hip)
-        (54879, 49669),  # Chertan -> Regulus (Belly)
-        (49669, 49583),  # Regulus -> Eta Leo (Sickle/Head)
-        (49583, 50583),  # Eta -> Algieba (Sickle)
-        (50583, 50335),  # Algieba -> Adhafera (Mane)
-        (50335, 48455),  # Adhafera -> Rasalas (Nose)
-        (48455, 47908),  # Rasalas -> Algenubi (Eye)
-    ],
-    "Gemini (The Twins)": [
-        (37826, 36850),  # Pollux -> Castor (Heads connection? Optional, usually distinct)
-        # Twin 1 (Pollux)
-        (37826, 35550),  # Pollux -> Wasat
-        (35550, 33694),  # Wasat -> Mekbuda
-        (33694, 30343),  # Mekbuda -> Alzirr (Feet)
-        # Twin 2 (Castor)
-        (36850, 32246),  # Castor -> Mebsuta
-        (32246, 31681),  # Mebsuta -> Tejat (Body)
-        (31681, 29655),  # Tejat -> Propus (Feet)
-    ],
-    "Taurus (The Bull)": [
-        (21421, 20205),  # Aldebaran -> Gamma Tau (Hyades V)
-        (20205, 20889),  # Gamma -> Delta Tau
-        (20889, 20894),  # Delta -> Epsilon Tau
-        (20894, 21421),  # Epsilon -> Aldebaran (V shape closed)
-        (20889, 17702),  # Delta -> Alcyone (Reach to Pleiades)
-        (21421, 25428),  # Aldebaran -> Elnath (Horn 1)
-        (21421, 24847),  # Aldebaran -> Zeta Tau (Horn 2)
-    ],
-    "Canis Major (The Great Dog)": [
-        (32349, 31425),  # Sirius -> Mirzam
-        (32349, 33579),  # Sirius -> Muliphein
-        (32349, 33165),  # Sirius -> Wezen (Body)
-        (33165, 33977),  # Wezen -> Adhara (Leg)
-        (33165, 35904),  # Wezen -> Aludra (Tail)
-    ],
-    "Crux (Southern Cross)": [
-        (60718, 62434), # Acrux -> Mimosa
-        (62434, 59747), # Mimosa -> Gacrux
-        (59747, 58120), # Gacrux -> Imai
-        (58120, 60718)  # Imai -> Acrux
-    ]
+    "Orion": [(27989, 25336), (25336, 24436), (24436, 27366), (27366, 27989), (27989, 28614), (26311, 26727), (26727, 25930), (25930, 25336), (26311, 27366)],
+    "Ursa Major": [(54061, 53910), (53910, 58001), (58001, 59774), (59774, 54061), (59774, 62956), (62956, 65378), (65378, 67301)],
+    "Ursa Minor": [(11767, 85822), (85822, 82080), (82080, 77055), (77055, 72607), (72607, 75097), (75097, 82080)],
+    "Cassiopeia": [(11569, 94263), (94263, 4427), (4427, 2685), (2685, 8886)],
+    "Cygnus": [(102098, 99639), (99639, 95947), (100453, 99639), (99639, 97165)],
+    "Scorpius": [(80763, 78820), (78820, 78401), (80763, 81266), (81266, 82396), (82396, 82514), (82514, 84143), (84143, 86228), (86228, 87073), (87073, 86670), (86670, 85927), (85927, 85696)],
+    "Leo": [(49669, 50583), (50583, 54872), (54872, 57632), (54872, 54879), (54879, 49669), (49669, 49583), (49583, 50583), (50583, 50335), (50335, 48455), (48455, 47908)],
+    "Gemini": [(37826, 35550), (35550, 33694), (33694, 30343), (36850, 32246), (32246, 31681), (31681, 29655)],
+    "Taurus": [(21421, 20205), (20205, 20889), (20889, 20894), (20894, 21421), (20889, 17702), (21421, 25428), (21421, 24847)],
+    "Canis Major": [(32349, 31425), (32349, 33579), (32349, 33165), (33165, 33977), (33165, 35904)],
+    "Crux": [(60718, 62434), (62434, 59747), (59747, 58120), (58120, 60718)]
 }
 
 def add_constellations(fig, visible_stars_df):
-    """
-    Draws lines between specific stars if both are visible.
-    Includes error handling for missing stars.
-    """
-    # Create a lookup for Star Positions by HIP ID
+    """Draws lines between visible stars."""
     star_map = visible_stars_df.set_index('id')[['altitude', 'azimuth']].to_dict('index')
-
+    
     for name, pairs in CONSTELLATIONS.items():
         x_lines, y_lines, z_lines = [], [], []
-        
-        # We check if at least one line can be drawn for this constellation
         has_visible_lines = False
         
         for hip1, hip2 in pairs:
-            # Check if BOTH stars are currently visible
             if hip1 in star_map and hip2 in star_map:
-                s1 = star_map[hip1]
-                s2 = star_map[hip2]
-                
-                # Convert both to 3D Coordinates (Radius 100)
+                s1, s2 = star_map[hip1], star_map[hip2]
                 for s in [s1, s2]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
                     z_lines.append(100 * np.sin(alt))
-                
-                # Add None to break the line segment
-                x_lines.append(None)
-                y_lines.append(None)
-                z_lines.append(None)
+                # Add None to create a break in the line
+                x_lines.append(None); y_lines.append(None); z_lines.append(None)
                 has_visible_lines = True
         
         if has_visible_lines:
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                line=dict(color='rgba(100, 255, 218, 0.4)', width=3), # Cyan-Green, faint
-                name=name,
-                hoverinfo='name'
+                line=dict(color='rgba(100, 255, 218, 0.4)', width=3),
+                name=name, hoverinfo='name'
             ))
     return fig
 # --- 1. CACHED DATA LOADING (The Speed Fix) ---
@@ -277,7 +175,7 @@ def generate_railing():
     return x_rail, y_rail, z_grid_rail
 
 # --- 6. 3D CHART GENERATOR ---
-def create_3d_sphere_chart(visible_stars):
+def create_3d_sphere_chart(visible_stars, show_constellations=False):
     # A. Star Math
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
@@ -332,11 +230,12 @@ def create_3d_sphere_chart(visible_stars):
         showlegend=False, margin=dict(l=0, r=0, b=0, t=0), height=500
     )
     # In stargaze_utils.py
+# ... (Your existing stars/observer/layout code is here) ...
 
-# Update function signature to accept the switch
-
+    # --- ADD THIS NEW BLOCK ---
     if show_constellations:
         fig = add_constellations(fig, visible_stars)
-        
+    # --------------------------
+
     return fig
     
