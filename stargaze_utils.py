@@ -189,17 +189,18 @@ def create_3d_sphere_chart(visible_stars):
     # 5. STYLE
     fig.update_layout(
         template="plotly_dark",
+       # In stargaze_utils.py -> create_3d_sphere_chart
+
+    # ... inside fig.update_layout( ...
         scene=dict(
             bgcolor='#000510',
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
-            camera=dict(
-                eye=dict(x=0.1, y=0.1, z=0.1) # Start view CLOSE to the ground (Human view)
-            )
+            camera=dict(eye=dict(x=0.1, y=0.1, z=0.1))
         ),
-        showlegend=False,
+        showlegend=False,  # <--- ADD THIS LINE to remove the sidebar key
         margin=dict(l=0, r=0, b=0, t=0),
-        height=900
+        height=500
     )
     return fig
