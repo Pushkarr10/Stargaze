@@ -133,6 +133,29 @@ def create_star_chart(visible_stars):
 
 # In stargaze_utils.py
 
+# In stargaze_utils.py
+
+def generate_terrain():
+    # 1. Create a grid (The ground)
+    # We make a 50x50 grid covering an area of 100x100 units
+    x = np.linspace(-50, 50, 50)
+    y = np.linspace(-50, 50, 50)
+    x_grid, y_grid = np.meshgrid(x, y)
+    
+    # 2. Generate Height (The Mountains)
+    # We use a simple math formula to make "hills"
+    # Sin waves + Random noise
+    z_grid = np.sin(x_grid/10) * np.cos(y_grid/10) * 5  # Big rolling hills
+    z_grid += np.random.normal(0, 0.5, z_grid.shape)    # Rough texture
+    
+    # Flatten the center (Where the user stands)
+    # Any point within distance 10 of center gets flattened to 0
+    distance_from_center = np.sqrt(x_grid**2 + y_grid**2)
+    mask = distance_from_center < 15
+    z_grid[mask] = z_grid[mask] * (distance_from_center[mask] / 15) # Smoothly flatten
+    
+    return x_grid, y_grid, z_grid
+
 def create_3d_sphere_chart(visible_stars):
     # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
@@ -145,22 +168,17 @@ def create_3d_sphere_chart(visible_stars):
     
     fig = go.Figure()
 
-    # 2. ADD THE GROUND (NEW!) 🌍
-    # We create a flat circle at Z=0 to represent the horizon
-    # This involves a bit of geometry math to draw a filled circle
-    theta = np.linspace(0, 2*np.pi, 100)
-    r_ground = np.linspace(0, 100, 20)
-    theta_grid, r_grid = np.meshgrid(theta, r_ground)
-    x_ground = r_grid * np.cos(theta_grid)
-    y_ground = r_grid * np.sin(theta_grid)
-    z_ground = np.zeros_like(x_ground) # Z is always 0 (flat)
+    # ... inside create_3d_sphere_chart ...
 
+    # 2. ADD THE TERRAIN (NEW!) 🏔️
+    x_ground, y_ground, z_ground = generate_terrain()
+    
     fig.add_trace(go.Surface(
         x=x_ground, y=y_ground, z=z_ground,
-        colorscale=[[0, '#151b1f'], [1, '#151b1f']], # Dark gray ground
+        colorscale='Earth', # Brown/Green colors
         showscale=False,
-        opacity=0.9, # Slightly see-through
-        name='Ground',
+        opacity=0.9,
+        name='Terrain',
         hoverinfo='skip'
     ))
 
@@ -185,7 +203,7 @@ def create_3d_sphere_chart(visible_stars):
         marker=dict(size=5, color='#00ff00'), # Green dot for user
         name='Observer'
     ))
-
+    
     # 5. STYLE
     fig.update_layout(
         template="plotly_dark",
