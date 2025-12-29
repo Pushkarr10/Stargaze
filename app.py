@@ -1,13 +1,14 @@
 import streamlit as st
 import cv2
 import numpy as np
+import stargaze_utils as star_logic
 import json
 import bcrypt
 import re
 import base64
 from scipy.spatial import Delaunay
 from supabase import create_client, Client
-import stargaze_utils as star_logic
+
 
 # =================================================================
 # 🧬 ZONE 1: THE BACKBONE (Geometric Engine & Validators)
