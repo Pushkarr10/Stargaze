@@ -85,7 +85,7 @@ def process_terrain_mesh(filename, resolution=300): # INCREASED DEFAULT TO 300
         # Flip Left-Right to fix the "Mirror" effect
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
         # If it is upside down, uncomment the next line:
-        # img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
         
         # Crop to Center Square
         width, height = img.size
