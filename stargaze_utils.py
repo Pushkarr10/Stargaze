@@ -225,6 +225,21 @@ def create_star_chart(visible_stars):
 
     return fig
  # In stargaze_utils.py
+# --- 5. RAILING GENERATOR ---
+def generate_railing():
+    # Vertical range for the wall
+    z_rail = np.linspace(-2, 5, 5)
+    # Full circle coordinates
+    theta_rail = np.linspace(0, 2*np.pi, 100)
+    
+    # Create the mesh grid
+    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
+    
+    # Convert to Cartesian (at radius 99, just inside the stars)
+    x_rail = 99 * np.cos(theta_grid_rail)
+    y_rail = 99 * np.sin(theta_grid_rail)
+    
+    return x_rail, y_rail, z_grid_rail
 # In stargaze_utils.py
 
 # --- 6. 3D CHART GENERATOR (Updated Call) ---
