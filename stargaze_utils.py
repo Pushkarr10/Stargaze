@@ -21,43 +21,64 @@ CONSTELLATIONS = {
 }
 
 def add_constellations(fig, visible_stars_df):
-    """Draws lines between visible stars."""
-    # Create a lookup for Star Positions by HIP ID
+    """
+    Draws lines and prints DEBUG info to find out why lines are missing.
+    """
+    # 1. DEBUG: Check if we have IDs
+    # If the ID column is missing or weird, this will tell us.
+    if 'id' not in visible_stars_df.columns:
+        print("❌ ERROR: 'id' column missing from visible_stars dataframe!")
+        return fig
+
+    # 2. DEBUG: check the first ID
+    first_id = visible_stars_df['id'].iloc[0]
+    print(f"ℹ️ DEBUG: First Star ID is {first_id} (Type: {type(first_id)})")
+
+    # Create the lookup map
     star_map = visible_stars_df.set_index('id')[['altitude', 'azimuth']].to_dict('index')
     
-    # Debug: Check if we are finding matches
-    # print(f"Mapping constellations against {len(star_map)} visible stars...")
+    lines_drawn_count = 0
 
     for name, pairs in CONSTELLATIONS.items():
         x_lines, y_lines, z_lines = [], [], []
         has_visible_lines = False
         
         for hip1, hip2 in pairs:
-            # The keys in star_map must be INTs to match CONSTELLATIONS
+            # Check matches
             if hip1 in star_map and hip2 in star_map:
-                s1, s2 = star_map[hip1], star_map[hip2]
+                s1 = star_map[hip1]
+                s2 = star_map[hip2]
                 
-                # Convert both to 3D Coordinates
+                # Math to draw the line
                 for s in [s1, s2]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
                     z_lines.append(100 * np.sin(alt))
                 
-                # Add None to break the line segment
+                # Break the line
                 x_lines.append(None)
                 y_lines.append(None)
                 z_lines.append(None)
                 has_visible_lines = True
+                lines_drawn_count += 1
         
         if has_visible_lines:
+            print(f"✅ Drawing {name}...")
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                line=dict(color='rgba(100, 255, 218, 0.4)', width=3), # Cyan Lines
+                # INCREASED WIDTH AND OPACITY to make them super obvious
+                line=dict(color='#00FFFF', width=10), 
                 name=name,
                 hoverinfo='name'
             ))
+            
+    if lines_drawn_count == 0:
+        print("⚠️ WARNING: No constellation lines matched visible stars.")
+    else:
+        print(f"🎉 Success: Drew {lines_drawn_count} lines.")
+
     return fig
 # --- 1. CACHED DATA LOADING (The Speed Fix) ---
 @st.cache_data
