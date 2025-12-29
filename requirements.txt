@@ -5,3 +5,6 @@ scipy
 streamlit-authenticator
 supabase
 bcrypt
+pandas
+plotly
+skyfield
