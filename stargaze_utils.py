@@ -4,14 +4,21 @@ from skyfield.api import Star, load, wgs84
 import streamlit as st # Only needed if you use @st.cache_data
 @st.cache_data
 # 1.The loader
+# In stargaze_utils.py
+
+@st.cache_data
 def load_star_data():
-    # UPDATED URL: We use the .gz version which is smaller and correct
-    url = "https://raw.githubusercontent.com/astronexus/HYG-Database/master/hygdata_v3.csv.gz"
+    # 1. Use the correct .csv URL (not .gz)
+    url = "https://raw.githubusercontent.com/astronexus/HYG-Database/master/hygdata_v3.csv"
     
-    # We add compression='gzip' to tell Pandas to unzip it
-    df = pd.read_csv(url, compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
+    # 2. Add 'storage_options' to fake a browser User-Agent
+    # This prevents the "HTTP Error 403/429" from GitHub
+    df = pd.read_csv(
+        url, 
+        usecols=['id', 'proper', 'ra', 'dec', 'mag'],
+        storage_options={'User-Agent': 'Mozilla/5.0'} 
+    )
     
-    # The rest remains the same...
     bright_stars = df[df['mag'] < 6.0].copy()
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
     return bright_stars
