@@ -3,7 +3,8 @@ import numpy as np  # <-- This was missing!
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
 import streamlit as st
-from PIL import Image #
+from PIL import Image 
+import os
 
 # 1. The Loader (Emergency Version - No Download Needed)
 @st.cache_data
@@ -52,102 +53,6 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     # Filter: Keep only stars above the horizon
     return df[df['altitude'] > 0]
 # 3. The Plotter
-# In stargaze_utils.py
-# --- 1. IMAGE LOADER (NEW!) ---
-# --- 4. IMAGE PROCESSOR (Fixed: Higher Res + Flip) ---
-def process_terrain_mesh(filename, resolution=300): # INCREASED DEFAULT TO 300
-    """
-    Generates a circular grid of points and matches them to image pixels.
-    Returns flattened X, Y, Z arrays and a list of Colors.
-    """
-    # 1. Generate the Grid
-    xy = np.linspace(-100, 100, resolution)
-    x_grid, y_grid = np.meshgrid(xy, xy)
-    
-    # 2. Calculate Radius & Create Mask (The Circle Cut)
-    radius = np.sqrt(x_grid**2 + y_grid**2)
-    mask = radius <= 100
-    
-    # 3. Apply Mask to Coordinates (Flattening them)
-    x_flat = x_grid[mask]
-    y_flat = y_grid[mask]
-    z_flat = np.full_like(x_flat, -2) 
-    
-    # 4. Process Image
-    try:
-        if not os.path.exists(filename):
-            # Silent fallback so app doesn't crash on simple refreshes
-            return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
-            
-        img = Image.open(filename)
-        
-        # --- FIX 1: UNSCRAMBLE THE IMAGE ---
-        # Flip Left-Right to fix the "Mirror" effect
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
-        # If it is upside down, uncomment the next line:
-        img = img.transpose(Image.FLIP_TOP_BOTTOM)
-        
-        # Crop to Center Square
-        width, height = img.size
-        min_dim = min(width, height)
-        left = (width - min_dim)/2
-        top = (height - min_dim)/2
-        right = (width + min_dim) / 2
-        bottom = (height + min_dim) / 2
-        img = img.crop((left, top, right, bottom))
-        
-        # --- FIX 2: HIGH DEFINITION ---
-        # Resize to match the higher resolution grid (300x300)
-        img = img.resize((resolution, resolution))
-        img_array = np.array(img)
-        
-        # Extract RGB channels
-        R = img_array[:,:,0]
-        G = img_array[:,:,1]
-        B = img_array[:,:,2]
-        
-        # Convert to Plotly Color Strings
-        color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
-        color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
-        color_grid = np.char.add(color_grid, ')')
-        
-        # Apply the SAME mask to colors
-        colors_flat = color_grid[mask]
-        
-        return x_flat, y_flat, z_flat, colors_flat
-        
-    except Exception as e:
-        print(f"Texture Fallback: {e}")
-        colors_flat = np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
-        return x_flat, y_flat, z_flat, colors_flat
-        
-# --- 2. ARCHITECTURE GENERATOR (UPDATED FOR TEXTURES) ---
-def generate_textured_deck(resolution=200):
-    # We switch from Polar (Circles) to Cartesian (Squares) 
-    # so the image pixels line up perfectly.
-    
-    # 1. Create a Square Grid (-100 to 100)
-    xy = np.linspace(-100, 100, resolution)
-    x_grid, y_grid = np.meshgrid(xy, xy)
-    
-    # 2. The Floor Height (Z)
-    z_floor = np.zeros_like(x_grid) - 2
-    
-    # 3. Cut the Circle (The Cookie Cutter)
-    # Any point further than 100 units from center is invisible
-    radius = np.sqrt(x_grid**2 + y_grid**2)
-    mask = radius > 100
-    z_floor[mask] = np.nan # Hides the corners
-    
-    # 4. The Railing (Ring Wall) - Keeps using Polar for smooth curves
-    z_rail = np.linspace(-2, 5, 5)
-    theta_rail = np.linspace(0, 2*np.pi, 100)
-    z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
-    x_rail = 99 * np.cos(theta_grid_rail)
-    y_rail = 99 * np.sin(theta_grid_rail)
-    
-    return (x_grid, y_grid, z_floor), (x_rail, y_rail, z_grid_rail)
-
 def create_star_chart(visible_stars):
     fig = go.Figure()
 
@@ -225,6 +130,65 @@ def create_star_chart(visible_stars):
 
     return fig
  # In stargaze_utils.py
+# In stargaze_utils.py
+# --- 4. IMAGE PROCESSOR (Fixed Path & Debugging) ---
+def process_terrain_mesh(filename, resolution=300):
+    """
+    Generates a circular grid of points and matches them to image pixels.
+    Includes robust path finding and error reporting.
+    """
+    # 1. Generate the Grid
+    xy = np.linspace(-100, 100, resolution)
+    x_grid, y_grid = np.meshgrid(xy, xy)
+    
+    # 2. Circle Mask
+    radius = np.sqrt(x_grid**2 + y_grid**2)
+    mask = radius <= 100
+    
+    x_flat = x_grid[mask]
+    y_flat = y_grid[mask]
+    z_flat = np.full_like(x_flat, -2) 
+    
+    # 3. Robust Path Construction
+    # This finds the absolute path to the folder containing THIS script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_dir, filename)
+
+    try:
+        # Check if file exists at the specific path
+        if not os.path.exists(file_path):
+            st.error(f"⚠️ Texture Missing! I looked here: {file_path}")
+            # Return grey fallback so app doesn't crash
+            return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
+            
+        img = Image.open(file_path)
+        img = img.transpose(Image.FLIP_LEFT_RIGHT) # Fix Mirroring
+        
+        # Center Crop
+        width, height = img.size
+        min_dim = min(width, height)
+        left = (width - min_dim)/2
+        top = (height - min_dim)/2
+        right = (width + min_dim)/2
+        bottom = (height + min_dim)/2
+        img = img.crop((left, top, right, bottom))
+        
+        # Resize & Color Process
+        img = img.resize((resolution, resolution))
+        img_array = np.array(img)
+        R, G, B = img_array[:,:,0], img_array[:,:,1], img_array[:,:,2]
+        
+        # Create Color Strings
+        color_grid = np.char.add(np.char.add(np.char.add('rgb(', R.astype(str)), ','), G.astype(str))
+        color_grid = np.char.add(np.char.add(color_grid, ','), B.astype(str))
+        color_grid = np.char.add(color_grid, ')')
+        
+        return x_flat, y_flat, z_flat, color_grid[mask]
+        
+    except Exception as e:
+        st.error(f"⚠️ Texture Load Error: {e}")
+        # Return grey fallback
+        return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
 # --- 5. RAILING GENERATOR ---
 def generate_railing():
     # Vertical range for the wall
