@@ -22,37 +22,52 @@ CONSTELLATIONS = {
 
 def add_constellations(fig, visible_stars_df):
     """Draws lines between visible stars."""
+    # Create a lookup for Star Positions by HIP ID
     star_map = visible_stars_df.set_index('id')[['altitude', 'azimuth']].to_dict('index')
     
+    # Debug: Check if we are finding matches
+    # print(f"Mapping constellations against {len(star_map)} visible stars...")
+
     for name, pairs in CONSTELLATIONS.items():
         x_lines, y_lines, z_lines = [], [], []
         has_visible_lines = False
         
         for hip1, hip2 in pairs:
+            # The keys in star_map must be INTs to match CONSTELLATIONS
             if hip1 in star_map and hip2 in star_map:
                 s1, s2 = star_map[hip1], star_map[hip2]
+                
+                # Convert both to 3D Coordinates
                 for s in [s1, s2]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
                     z_lines.append(100 * np.sin(alt))
-                # Add None to create a break in the line
-                x_lines.append(None); y_lines.append(None); z_lines.append(None)
+                
+                # Add None to break the line segment
+                x_lines.append(None)
+                y_lines.append(None)
+                z_lines.append(None)
                 has_visible_lines = True
         
         if has_visible_lines:
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                line=dict(color='rgba(100, 255, 218, 0.4)', width=3),
-                name=name, hoverinfo='name'
+                line=dict(color='rgba(100, 255, 218, 0.4)', width=3), # Cyan Lines
+                name=name,
+                hoverinfo='name'
             ))
     return fig
 # --- 1. CACHED DATA LOADING (The Speed Fix) ---
 @st.cache_data
 def load_star_data():
-    """Loads star catalog once."""
     df = pd.read_csv("stars.csv.gz", compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
+    
+    # --- FIX: CLEAN & CONVERT IDs ---
+    df = df.dropna(subset=['id'])  # Drop rows with no ID
+    df['id'] = df['id'].astype(int) # Force to Integer (removes .0)
+    
     bright_stars = df[df['mag'] < 6.0].copy()
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
     return bright_stars
