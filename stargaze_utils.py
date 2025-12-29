@@ -2,12 +2,16 @@ import pandas as pd
 import plotly.graph_objects as go
 from skyfield.api import Star, load, wgs84
 import streamlit as st # Only needed if you use @st.cache_data
-
-# 1. The Loader
 @st.cache_data
+# 1.The loader
 def load_star_data():
-    url = "https://raw.githubusercontent.com/astronexus/HYG-Database/master/hygdata_v3.csv"
-    df = pd.read_csv(url, usecols=['id', 'proper', 'ra', 'dec', 'mag'])
+    # UPDATED URL: We use the .gz version which is smaller and correct
+    url = "https://raw.githubusercontent.com/astronexus/HYG-Database/master/hygdata_v3.csv.gz"
+    
+    # We add compression='gzip' to tell Pandas to unzip it
+    df = pd.read_csv(url, compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
+    
+    # The rest remains the same...
     bright_stars = df[df['mag'] < 6.0].copy()
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
     return bright_stars
