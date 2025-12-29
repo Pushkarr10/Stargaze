@@ -20,64 +20,63 @@ CONSTELLATIONS = {
     "Crux": [(60718, 62434), (62434, 59747), (59747, 58120), (58120, 60718)]
 }
 
+# --- FINAL CONSTELLATION LOGIC ---
 def add_constellations(fig, visible_stars_df):
     """
-    Draws lines and prints DEBUG info to find out why lines are missing.
+    Draws constellation lines. 
+    Includes robust type conversion to ensure stars match even if Pandas uses int64.
     """
-    # 1. DEBUG: Check if we have IDs
-    # If the ID column is missing or weird, this will tell us.
-    if 'id' not in visible_stars_df.columns:
-        print("❌ ERROR: 'id' column missing from visible_stars dataframe!")
-        return fig
-
-    # 2. DEBUG: check the first ID
-    first_id = visible_stars_df['id'].iloc[0]
-    print(f"ℹ️ DEBUG: First Star ID is {first_id} (Type: {type(first_id)})")
-
-    # Create the lookup map
-    star_map = visible_stars_df.set_index('id')[['altitude', 'azimuth']].to_dict('index')
+    # 1. Build a Robust Star Map
+    # We force the Keys to be standard Python 'int' so they strictly match the dictionary.
+    star_map = {}
     
-    lines_drawn_count = 0
+    # Iterate safely to build the map
+    # This is faster and safer than set_index when types are mixed
+    for index, row in visible_stars_df.iterrows():
+        try:
+            native_id = int(row['id']) # Force conversion to native python int
+            star_map[native_id] = {
+                'altitude': row['altitude'],
+                'azimuth': row['azimuth']
+            }
+        except:
+            continue
 
+    # 2. Iterate and Draw
     for name, pairs in CONSTELLATIONS.items():
         x_lines, y_lines, z_lines = [], [], []
-        has_visible_lines = False
+        has_lines = False
         
         for hip1, hip2 in pairs:
-            # Check matches
+            # Now we compare int vs int. 100% reliable.
             if hip1 in star_map and hip2 in star_map:
                 s1 = star_map[hip1]
                 s2 = star_map[hip2]
                 
-                # Math to draw the line
+                # Calculate 3D positions for both stars
                 for s in [s1, s2]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
+                    # Radius 100 (matches the stars)
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
                     z_lines.append(100 * np.sin(alt))
                 
-                # Break the line
+                # Add 'None' to break the line between pairs
                 x_lines.append(None)
                 y_lines.append(None)
                 z_lines.append(None)
-                has_visible_lines = True
-                lines_drawn_count += 1
+                has_lines = True
         
-        if has_visible_lines:
-            print(f"✅ Drawing {name}...")
+        # Add the Trace if lines exist
+        if has_lines:
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                # INCREASED WIDTH AND OPACITY to make them super obvious
-                line=dict(color='#00FFFF', width=10), 
+                # Cyan color, slightly transparent, nice thickness
+                line=dict(color='rgba(0, 255, 255, 0.4)', width=5), 
                 name=name,
                 hoverinfo='name'
             ))
-            
-    if lines_drawn_count == 0:
-        print("⚠️ WARNING: No constellation lines matched visible stars.")
-    else:
-        print(f"🎉 Success: Drew {lines_drawn_count} lines.")
 
     return fig
 # --- 1. CACHED DATA LOADING (The Speed Fix) ---
@@ -221,8 +220,8 @@ def generate_railing():
     return x_rail, y_rail, z_grid_rail
 
 # --- 6. 3D CHART GENERATOR ---
-def create_3d_sphere_chart(visible_stars, show_constellations=False):
-    # A. Star Math
+]def create_3d_sphere_chart(visible_stars, show_constellations=False):
+    # Standard Math
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
     r_sphere = 100 
@@ -232,56 +231,63 @@ def create_3d_sphere_chart(visible_stars, show_constellations=False):
     
     fig = go.Figure()
 
-    # B. Textured Floor (Cached!)
+    # (A) Textured Floor
     x_f, y_f, z_f, c_f = process_terrain_mesh("terrain.png", resolution=300)
     fig.add_trace(go.Mesh3d(
-        x=x_f, y=y_f, z=z_f, vertexcolor=c_f, 
-        name='Terrain Floor', hoverinfo='skip', opacity=1.0, delaunayaxis='z' 
+        x=x_f, y=y_f, z=z_f, 
+        vertexcolor=c_f, 
+        name='Terrain Floor', 
+        hoverinfo='skip', opacity=1.0, delaunayaxis='z'
     ))
 
-    # C. Railing
+    # (B) Railing
     x_r, y_r, z_r = generate_railing()
     fig.add_trace(go.Surface(
-        x=x_r, y=y_r, z=z_r, colorscale=[[0, '#00d2ff'], [1, '#000510']], 
-        showscale=False, opacity=0.6, name='Horizon Wall', hoverinfo='skip'
+        x=x_r, y=y_r, z=z_r, 
+        colorscale=[[0, '#00d2ff'], [1, '#000510']], 
+        showscale=False, opacity=0.6, 
+        name='Horizon Wall', hoverinfo='skip'
     ))
 
-    # D. Compass
+    # (C) Compass
     fig.add_trace(go.Scatter3d(
-        x=[0, 90, 0, -90], y=[90, 0, -90, 0], z=[-1.5, -1.5, -1.5, -1.5],
-        mode='text', text=["<b>N</b>", "<b>E</b>", "<b>S</b>", "<b>W</b>"],
+        x=[0, 90, 0, -90], y=[90, 0, -90, 0], z=[-1.5]*4,
+        mode='text',
+        text=["<b>N</b>", "<b>E</b>", "<b>S</b>", "<b>W</b>"],
         textfont=dict(color=['#ff3333', '#000510', '#000510', '#000510'], size=30, family="Arial Black"),
         hoverinfo='skip', name='Compass'
     ))
 
-    # E. Stars & Observer
+    # (D) Stars
     fig.add_trace(go.Scatter3d(
-        x=x, y=y, z=z, mode='markers',
+        x=x, y=y, z=z,
+        mode='markers',
         marker=dict(size=np.clip(5 - visible_stars['mag'], 1, 5), color='white', opacity=0.8, line=dict(width=0)),
         hovertext=visible_stars['proper'], name='Stars'
     ))
+
+    # (E) Constellations (The Fix)
+    if show_constellations:
+        fig = add_constellations(fig, visible_stars)
+
+    # (F) Observer
     fig.add_trace(go.Scatter3d(
-        x=[0], y=[0], z=[-1], mode='markers', marker=dict(size=4, color='#00ff00'), name='Observer'
+        x=[0], y=[0], z=[-1], 
+        mode='markers', 
+        marker=dict(size=4, color='#00ff00'), 
+        name='Observer'
     ))
 
-    # F. Layout
+    # Layout
     fig.update_layout(
         template="plotly_dark",
         scene=dict(
             bgcolor='#000510',
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
-            dragmode="turntable", 
+            dragmode="turntable",
             camera=dict(eye=dict(x=0.1, y=-0.1, z=0.1), up=dict(x=0, y=0, z=1))
         ),
         showlegend=False, margin=dict(l=0, r=0, b=0, t=0), height=500
     )
-    # In stargaze_utils.py
-# ... (Your existing stars/observer/layout code is here) ...
-
-    # --- ADD THIS NEW BLOCK ---
-    if show_constellations:
-        fig = add_constellations(fig, visible_stars)
-    # --------------------------
-
-    return fig
     
+    return fig
