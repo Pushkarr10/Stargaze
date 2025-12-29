@@ -344,59 +344,71 @@ st.title("My Website Main Page")
 
 # In app.py
 
+import streamlit as st
+import stargaze_utils as star_logic
+from datetime import datetime
+import pytz
+from streamlit_folium import st_folium
+import folium
 
-# 1. SETUP: Wide layout for maximum mobile space
 st.set_page_config(layout="wide", page_title="Stargaze Mobile")
 
-# Custom CSS to reduce padding and make the map bigger on phones
+# CSS adjustments
 st.markdown("""
 <style>
-    .block-container {padding-top: 1rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem;}
+    .block-container {padding-top: 1rem; padding-bottom: 0rem;}
     div[data-testid="stExpander"] {border: none; box-shadow: none;}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("✨ Stargaze")
 
-# 2. COMPACT CONTROLS (Top of screen)
-# We put everything inside an "Expander" so it collapses when not in use
-with st.expander("⚙️ Calibration (Location & Time)", expanded=False):
+# --- 1. SETTINGS MENU ---
+with st.expander("⚙️ Location & Time", expanded=False):
     
-    # Row 1: Location (2 columns)
+    # A. MAP PICKER
+    st.write("**Tap map to set location:**")
+    
+    # Create a base map centered on the last known location (or default Mumbai)
+    # We use session_state to remember where the pin was
+    if 'lat' not in st.session_state: st.session_state.lat = 19.07
+    if 'lon' not in st.session_state: st.session_state.lon = 72.87
+
+    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=4)
+    m.add_child(folium.LatLngPopup()) # Allows clicking
+    
+    # Render map and get return data
+    map_data = st_folium(m, height=250, width="100%")
+
+    # Update lat/lon if user clicked
+    if map_data['last_clicked']:
+        st.session_state.lat = map_data['last_clicked']['lat']
+        st.session_state.lon = map_data['last_clicked']['lng']
+
+    # Display selected coords (readonly)
+    st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f}")
+
+    # B. TIME PICKER
     col1, col2 = st.columns(2)
-    with col1:
-        lat = st.number_input("Lat", value=19.07, format="%.2f")
-    with col2:
-        lon = st.number_input("Lon", value=72.87, format="%.2f")
+    with col1: user_date = st.date_input("Date", value=datetime.now())
+    with col2: user_time = st.time_input("Time", value=datetime.now())
 
-    # Row 2: Time (2 columns)
-    col3, col4 = st.columns(2)
-    with col3:
-        user_date = st.date_input("Date", value=datetime.now())
-    with col4:
-        user_time = st.time_input("Time", value=datetime.now())
-
-# Combine time inputs
 observer_time = datetime.combine(user_date, user_time).replace(tzinfo=pytz.utc)
 
-# 3. VIEW TOGGLE (Tabs represent modes better on mobile)
+# --- 2. MAIN APP ---
 tab1, tab2 = st.tabs(["🪐 3D Immersion", "🗺️ 2D Map"])
 
-# 4. LOAD DATA (Cached so it doesn't reload on every click)
 with st.spinner("Aligning satellites..."):
     df = star_logic.load_star_data()
-    visible_stars = star_logic.calculate_sky_positions(df, lat, lon, observer_time)
+    # USE SESSION STATE LAT/LON
+    visible_stars = star_logic.calculate_sky_positions(df, st.session_state.lat, st.session_state.lon, observer_time)
 
-# 5. RENDER TABS
 with tab1:
-    # 3D View
     fig_3d = star_logic.create_3d_sphere_chart(visible_stars)
-    # Update height to fit mobile screens better (500px is standard for phones)
-    fig_3d.update_layout(height=500, margin=dict(l=0, r=0, t=0, b=0))
+    fig_3d.update_layout(height=500, showlegend=False) # Ensure legend is off
     st.plotly_chart(fig_3d, use_container_width=True)
 
 with tab2:
-    # 2D View
     fig_2d = star_logic.create_star_chart(visible_stars)
-    fig_2d.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10))
+    fig_2d.update_layout(height=500, showlegend=False)
     st.plotly_chart(fig_2d, use_container_width=True)
