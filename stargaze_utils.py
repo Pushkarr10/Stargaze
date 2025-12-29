@@ -6,15 +6,19 @@ import streamlit as st
 # 1. The Loader (Emergency Version - No Download Needed)
 @st.cache_data
 def load_star_data():
-    # EMERGENCY FALLBACK: Manually create a tiny database of 10 bright stars
-    data = {
-        'id': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-        'proper': ['Sun', 'Sirius', 'Canopus', 'Arcturus', 'Vega', 'Capella', 'Rigel', 'Procyon', 'Betelgeuse', 'Altair'],
-        'ra': [0.0, 6.75, 6.40, 14.26, 18.62, 5.27, 5.24, 7.65, 5.92, 19.85],
-        'dec': [0.0, -16.72, -52.70, 19.18, 38.78, 46.00, -8.20, 5.21, 7.41, 8.87],
-        'mag': [-26.7, -1.46, -0.74, -0.05, 0.03, 0.08, 0.13, 0.34, 0.50, 0.77]
-    }
-    return pd.DataFrame(data)
+    # We read the compressed file directly. 
+    # Python unzips it in memory, so you don't have to extract it on Windows.
+    df = pd.read_csv(
+        "stars.csv.gz",  # The name of your uploaded file
+        compression='gzip', 
+        usecols=['id', 'proper', 'ra', 'dec', 'mag']
+    )
+    
+    # Filter for bright stars only
+    bright_stars = df[df['mag'] < 6.0].copy()
+    bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
+    
+    return bright_stars
 
 # 2. The Calculator
 def calculate_sky_positions(df, lat, lon):
