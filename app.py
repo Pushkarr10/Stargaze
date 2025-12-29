@@ -6,6 +6,8 @@ import json
 import bcrypt
 import re
 import base64
+from datetime import datetime
+import pytz
 from scipy.spatial import Delaunay
 from supabase import create_client, Client
 
@@ -343,23 +345,58 @@ st.title("My Website Main Page")
 # In app.py
 
 
+# 1. SETUP: Wide layout for maximum mobile space
+st.set_page_config(layout="wide", page_title="Stargaze Mobile")
 
-st.set_page_config(layout="wide")
-st.title("✨ Stargaze Simulation")
+# Custom CSS to reduce padding and make the map bigger on phones
+st.markdown("""
+<style>
+    .block-container {padding-top: 1rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem;}
+    div[data-testid="stExpander"] {border: none; box-shadow: none;}
+</style>
+""", unsafe_allow_html=True)
 
-# Load data once
-with st.spinner("Calibrating Telescope..."):
+st.title("✨ Stargaze")
+
+# 2. COMPACT CONTROLS (Top of screen)
+# We put everything inside an "Expander" so it collapses when not in use
+with st.expander("⚙️ Calibration (Location & Time)", expanded=False):
+    
+    # Row 1: Location (2 columns)
+    col1, col2 = st.columns(2)
+    with col1:
+        lat = st.number_input("Lat", value=19.07, format="%.2f")
+    with col2:
+        lon = st.number_input("Lon", value=72.87, format="%.2f")
+
+    # Row 2: Time (2 columns)
+    col3, col4 = st.columns(2)
+    with col3:
+        user_date = st.date_input("Date", value=datetime.now())
+    with col4:
+        user_time = st.time_input("Time", value=datetime.now())
+
+# Combine time inputs
+observer_time = datetime.combine(user_date, user_time).replace(tzinfo=pytz.utc)
+
+# 3. VIEW TOGGLE (Tabs represent modes better on mobile)
+tab1, tab2 = st.tabs(["🪐 3D Immersion", "🗺️ 2D Map"])
+
+# 4. LOAD DATA (Cached so it doesn't reload on every click)
+with st.spinner("Aligning satellites..."):
     df = star_logic.load_star_data()
-    visible_stars = star_logic.calculate_sky_positions(df, 19.07, 72.87)
+    visible_stars = star_logic.calculate_sky_positions(df, lat, lon, observer_time)
 
-# Let user choose the view
-view_mode = st.radio("Select View Mode:", ["2D Sky Map (Scientific)", "3D Celestial Sphere (Immersive)"], horizontal=True)
+# 5. RENDER TABS
+with tab1:
+    # 3D View
+    fig_3d = star_logic.create_3d_sphere_chart(visible_stars)
+    # Update height to fit mobile screens better (500px is standard for phones)
+    fig_3d.update_layout(height=500, margin=dict(l=0, r=0, t=0, b=0))
+    st.plotly_chart(fig_3d, use_container_width=True)
 
-if "2D" in view_mode:
-    # Render the flat circular map
-    fig = star_logic.create_star_chart(visible_stars)
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    # Render the 3D rotating sphere
-    fig = star_logic.create_3d_sphere_chart(visible_stars)
-    st.plotly_chart(fig, use_container_width=True)
+with tab2:
+    # 2D View
+    fig_2d = star_logic.create_star_chart(visible_stars)
+    fig_2d.update_layout(height=500, margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig_2d, use_container_width=True)
