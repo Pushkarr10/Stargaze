@@ -61,17 +61,27 @@ def add_constellations(fig, visible_stars_df):
     return fig
 # --- 1. CACHED DATA LOADING (The Speed Fix) ---
 @st.cache_data
+
 def load_star_data():
+    # Load raw data
     df = pd.read_csv("stars.csv.gz", compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
     
-    # --- FIX: CLEAN & CONVERT IDs ---
-    df = df.dropna(subset=['id'])  # Drop rows with no ID
-    df['id'] = df['id'].astype(int) # Force to Integer (removes .0)
+    # --- CRITICAL FIX START ---
+    # 1. Drop rows that have no ID at all
+    df = df.dropna(subset=['id'])
     
+    # 2. Force IDs to be Integers (e.g., converts 27989.0 -> 27989)
+    # This ensures they match the keys in our Constellation Dictionary
+    df['id'] = df['id'].astype(int)
+    # --- CRITICAL FIX END ---
+    
+    # Filter for bright stars
     bright_stars = df[df['mag'] < 6.0].copy()
+    
+    # Fill missing names
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
+    
     return bright_stars
-
 @st.cache_resource
 def load_ephemeris():
     """Loads heavy planetary data ONCE (Fixes slider lag)."""
