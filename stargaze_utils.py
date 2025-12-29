@@ -133,28 +133,29 @@ def create_star_chart(visible_stars):
 # In stargaze_utils.py
 
 def generate_observatory_deck():
-    # PART A: THE FLOOR (A flat disk)
+    # PART A: THE FLOOR (Now extends to 100 radius to touch the horizon)
     # We use polar coordinates to make a perfect circle mesh
-    r_floor = np.linspace(0, 20, 10)  # Radius 0 to 20
-    theta_floor = np.linspace(0, 2*np.pi, 30) # Full circle
+    r_floor = np.linspace(0, 100, 20)  # CHANGED: 20 -> 100 (Full Horizon)
+    theta_floor = np.linspace(0, 2*np.pi, 60) # Increased resolution for smoothness
     r_grid, theta_grid = np.meshgrid(r_floor, theta_floor)
     
     x_floor = r_grid * np.cos(theta_grid)
     y_floor = r_grid * np.sin(theta_grid)
-    z_floor = np.zeros_like(x_floor) - 2 # Place it slightly below camera (z=-2)
+    
+    # Place it at Z = -2 (just below eye level so you feel tall)
+    z_floor = np.zeros_like(x_floor) - 2 
 
-    # PART B: THE RAILING (A ring wall)
-    # A cylinder at radius 20
-    z_rail = np.linspace(-2, 0, 5) # From floor height (-2) up to waist height (0)
-    theta_rail = np.linspace(0, 2*np.pi, 50)
+    # PART B: THE RAILING (The Rim at the Horizon)
+    # A cylinder at radius 99 (just inside the 100 star sphere)
+    z_rail = np.linspace(-2, 5, 5) # From floor (-2) up to a high wall (5)
+    theta_rail = np.linspace(0, 2*np.pi, 100)
     z_grid_rail, theta_grid_rail = np.meshgrid(z_rail, theta_rail)
     
-    x_rail = 20 * np.cos(theta_grid_rail) # Radius is locked at 20
-    y_rail = 20 * np.sin(theta_grid_rail)
-    # The Z height is just the grid we made
+    x_rail = 99 * np.cos(theta_grid_rail) 
+    y_rail = 99 * np.sin(theta_grid_rail)
     
     return (x_floor, y_floor, z_floor), (x_rail, y_rail, z_grid_rail)
-
+    
 def create_3d_sphere_chart(visible_stars):
     # 1. CONVERT STARS TO 3D
     alt_rad = np.radians(visible_stars['altitude'])
@@ -166,40 +167,31 @@ def create_3d_sphere_chart(visible_stars):
     z = r_sphere * np.sin(alt_rad)
     
     fig = go.Figure()
-
-    # ... inside create_3d_sphere_chart ...
-
-   # ... inside create_3d_sphere_chart ...
-
-   # ... inside create_3d_sphere_chart ...
-
-   # ... inside create_3d_sphere_chart ...
-
-    # 2. ADD THE OBSERVATORY DECK (NEW!) 🏟️
+# B. ADD THE FULL-SIZE DECK 🏟️
     (x_floor, y_floor, z_floor), (x_rail, y_rail, z_rail) = generate_observatory_deck()
     
-    # Trace A: The Floor (Dark Tiled look)
+    # 1. The Floor (Massive White/Grey Plate)
     fig.add_trace(go.Surface(
         x=x_floor, y=y_floor, z=z_floor,
-        colorscale=[[0, '#0f111a'], [1, '#1a1d2e']], # Dark metallic blue
+        # White/Grey gradient (Center -> Edge)
+        colorscale=[[0, '#e0e0e0'], [1, '#808080']], 
         showscale=False,
         opacity=1.0,
         name='Deck Floor',
         hoverinfo='skip',
-        lighting=dict(ambient=0.3, diffuse=0.6, roughness=0.1, specular=0.5) # Shiny floor
+        # Lighting to make it look like a solid matte floor
+        lighting=dict(ambient=0.4, diffuse=0.5, roughness=0.9, specular=0.1)
     ))
 
-    # Trace B: The Railing (Glowing Rim)
+    # 2. The Railing (Horizon Wall)
     fig.add_trace(go.Surface(
         x=x_rail, y=y_rail, z=z_rail,
-        colorscale=[[0, '#00d2ff'], [1, '#00d2ff']], # Neon Cyan/Blue
+        colorscale=[[0, '#00d2ff'], [1, '#000510']], # Cyan base fading to black top
         showscale=False,
-        opacity=0.4, # Semi-transparent glass look
-        name='Railing',
+        opacity=0.6, 
+        name='Horizon Wall',
         hoverinfo='skip'
     ))
-    
-
     # 3. ADD STARS
     fig.add_trace(go.Scatter3d(
         x=x, y=y, z=z,
