@@ -5,7 +5,40 @@ from skyfield.api import Star, load, wgs84
 import streamlit as st
 from PIL import Image
 import os
-# --- CONSTELLATION DATABASE ---
+
+# --- 1. DATA LOADING (Cached) ---
+@st.cache_data
+def load_star_data():
+    # Load raw data
+    df = pd.read_csv("stars.csv.gz", compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
+    
+    # CRITICAL FIX: Drop missing IDs and force to Integer
+    df = df.dropna(subset=['id'])
+    df['id'] = df['id'].astype(int)
+    
+    bright_stars = df[df['mag'] < 6.0].copy()
+    bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
+    return bright_stars
+
+@st.cache_resource
+def load_ephemeris():
+    return load('de421.bsp')
+
+# --- 2. CALCULATOR ---
+def calculate_sky_positions(df, lat, lon, custom_time=None):
+    ts = load.timescale()
+    t = ts.from_datetime(custom_time) if custom_time else ts.now()
+    planets = load_ephemeris()
+    earth = planets['earth']
+    observer = earth + wgs84.latlon(lat, lon)
+    stars = Star(ra_hours=df['ra'], dec_degrees=df['dec'])
+    astrometric = observer.at(t).observe(stars)
+    alt, az, distance = astrometric.apparent().altaz()
+    df['altitude'] = alt.degrees
+    df['azimuth'] = az.degrees
+    return df[df['altitude'] > 0]
+
+# --- 3. CONSTELLATION DATABASE (HIP IDs) ---
 CONSTELLATIONS = {
     "Orion": [(27989, 25336), (25336, 24436), (24436, 27366), (27366, 27989), (27989, 28614), (26311, 26727), (26727, 25930), (25930, 25336), (26311, 27366)],
     "Ursa Major": [(54061, 53910), (53910, 58001), (58001, 59774), (59774, 54061), (59774, 62956), (62956, 65378), (65378, 67301)],
@@ -20,18 +53,15 @@ CONSTELLATIONS = {
     "Crux": [(60718, 62434), (62434, 59747), (59747, 58120), (58120, 60718)]
 }
 
-# --- FINAL CONSTELLATION LOGIC ---
 def add_constellations(fig, visible_stars_df):
     """
     Draws constellation lines. 
     Includes robust type conversion to ensure stars match even if Pandas uses int64.
     """
     # 1. Build a Robust Star Map
-    # We force the Keys to be standard Python 'int' so they strictly match the dictionary.
     star_map = {}
     
     # Iterate safely to build the map
-    # This is faster and safer than set_index when types are mixed
     for index, row in visible_stars_df.iterrows():
         try:
             native_id = int(row['id']) # Force conversion to native python int
@@ -79,93 +109,10 @@ def add_constellations(fig, visible_stars_df):
             ))
 
     return fig
-# --- 1. CACHED DATA LOADING (The Speed Fix) ---
-@st.cache_data
 
-def load_star_data():
-    # Load raw data
-    df = pd.read_csv("stars.csv.gz", compression='gzip', usecols=['id', 'proper', 'ra', 'dec', 'mag'])
-    
-    # --- CRITICAL FIX START ---
-    # 1. Drop rows that have no ID at all
-    df = df.dropna(subset=['id'])
-    
-    # 2. Force IDs to be Integers (e.g., converts 27989.0 -> 27989)
-    # This ensures they match the keys in our Constellation Dictionary
-    df['id'] = df['id'].astype(int)
-    # --- CRITICAL FIX END ---
-    
-    # Filter for bright stars
-    bright_stars = df[df['mag'] < 6.0].copy()
-    
-    # Fill missing names
-    bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
-    
-    return bright_stars
-@st.cache_resource
-def load_ephemeris():
-    """Loads heavy planetary data ONCE (Fixes slider lag)."""
-    return load('de421.bsp')
-
-# --- 2. CALCULATOR (Now Optimized) ---
-def calculate_sky_positions(df, lat, lon, custom_time=None):
-    ts = load.timescale()
-    t = ts.from_datetime(custom_time) if custom_time else ts.now()
-
-    # Use the Cached Ephemeris (Fast!)
-    planets = load_ephemeris()
-    earth = planets['earth']
-    
-    observer = earth + wgs84.latlon(lat, lon)
-    stars = Star(ra_hours=df['ra'], dec_degrees=df['dec'])
-    
-    astrometric = observer.at(t).observe(stars)
-    alt, az, distance = astrometric.apparent().altaz()
-    
-    df['altitude'] = alt.degrees
-    df['azimuth'] = az.degrees
-    return df[df['altitude'] > 0]
-
-# --- 3. 2D CHART ---
-def create_star_chart(visible_stars):
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r = 90 - visible_stars['altitude'],
-        theta = visible_stars['azimuth'],
-        mode = 'markers',
-        marker = dict(
-            size = np.clip(12 - visible_stars['mag'] * 1.5, 0.5, 12),
-            color = 'white',
-            opacity = np.clip(1.2 - (visible_stars['mag'] / 6), 0.3, 1.0),
-            line = dict(width=0)
-        ),
-        hovertext = visible_stars['proper'],
-        hoverinfo = "text"
-    ))
-    fig.update_layout(
-        template = "plotly_dark",
-        paper_bgcolor = 'black', plot_bgcolor = 'black',
-        polar = dict(
-            bgcolor = "#000510",
-            radialaxis = dict(visible = False, range = [0, 90]),
-            angularaxis = dict(
-                visible = True, showline = True, linecolor = "#444", 
-                showgrid = False, showticklabels = False, 
-                direction = "clockwise", rotation = 90
-            )
-        ),
-        dragmode = False, showlegend = False,
-        margin = dict(l=20, r=20, t=20, b=20), height = 500
-    )
-    directions = [(0, "N"), (90, "E"), (180, "S"), (270, "W")]
-    for angle, label in directions:
-        fig.add_annotation(x=angle, y=1.1, text=f"<b>{label}</b>", showarrow=False, font=dict(color="#888"))
-    return fig
-
-# --- 4. IMAGE PROCESSOR (Cached for Speed) ---
+# --- 4. IMAGE PROCESSOR (Cached) ---
 @st.cache_data
 def process_terrain_mesh(filename, resolution=300):
-    """Generates texture mesh. Cached so we don't process images every frame."""
     xy = np.linspace(-100, 100, resolution)
     x_grid, y_grid = np.meshgrid(xy, xy)
     
@@ -176,7 +123,6 @@ def process_terrain_mesh(filename, resolution=300):
     y_flat = y_grid[mask]
     z_flat = np.full_like(x_flat, -2) 
     
-    # Robust Path Finding
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, filename)
 
@@ -185,7 +131,7 @@ def process_terrain_mesh(filename, resolution=300):
             return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
             
         img = Image.open(file_path)
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        img = img.transpose(Image.FLIP_LEFT_RIGHT) # Un-mirror
         
         width, height = img.size
         min_dim = min(width, height)
@@ -206,7 +152,6 @@ def process_terrain_mesh(filename, resolution=300):
         return x_flat, y_flat, z_flat, color_grid[mask]
         
     except Exception as e:
-        # We can't use st.error inside a cached function easily, so just print
         print(f"Texture Error: {e}")
         return x_flat, y_flat, z_flat, np.full_like(x_flat, 'rgb(50,50,50)', dtype=object)
 
@@ -220,7 +165,7 @@ def generate_railing():
     return x_rail, y_rail, z_grid_rail
 
 # --- 6. 3D CHART GENERATOR ---
-]def create_3d_sphere_chart(visible_stars, show_constellations=False):
+def create_3d_sphere_chart(visible_stars, show_constellations=False):
     # Standard Math
     alt_rad = np.radians(visible_stars['altitude'])
     az_rad = np.radians(visible_stars['azimuth'])
@@ -266,7 +211,7 @@ def generate_railing():
         hovertext=visible_stars['proper'], name='Stars'
     ))
 
-    # (E) Constellations (The Fix)
+    # (E) Constellations (With Switch)
     if show_constellations:
         fig = add_constellations(fig, visible_stars)
 
@@ -290,4 +235,40 @@ def generate_railing():
         showlegend=False, margin=dict(l=0, r=0, b=0, t=0), height=500
     )
     
+    return fig
+
+# --- 7. 2D CHART ---
+def create_star_chart(visible_stars):
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r = 90 - visible_stars['altitude'],
+        theta = visible_stars['azimuth'],
+        mode = 'markers',
+        marker = dict(
+            size = np.clip(12 - visible_stars['mag'] * 1.5, 0.5, 12),
+            color = 'white',
+            opacity = np.clip(1.2 - (visible_stars['mag'] / 6), 0.3, 1.0),
+            line = dict(width=0)
+        ),
+        hovertext = visible_stars['proper'],
+        hoverinfo = "text"
+    ))
+    fig.update_layout(
+        template = "plotly_dark",
+        paper_bgcolor = 'black', plot_bgcolor = 'black',
+        polar = dict(
+            bgcolor = "#000510",
+            radialaxis = dict(visible = False, range = [0, 90]),
+            angularaxis = dict(
+                visible = True, showline = True, linecolor = "#444", 
+                showgrid = False, showticklabels = False, 
+                direction = "clockwise", rotation = 90
+            )
+        ),
+        dragmode = False, showlegend = False,
+        margin = dict(l=20, r=20, t=20, b=20), height = 500
+    )
+    directions = [(0, "N"), (90, "E"), (180, "S"), (270, "W")]
+    for angle, label in directions:
+        fig.add_annotation(x=angle, y=1.1, text=f"<b>{label}</b>", showarrow=False, font=dict(color="#888"))
     return fig
