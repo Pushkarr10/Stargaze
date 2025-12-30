@@ -342,8 +342,6 @@ else:
 
 st.title("My Website Main Page")
 
-# In app.py
-
 import streamlit as st
 import stargaze_utils as star_logic
 from datetime import datetime, time
@@ -366,29 +364,34 @@ st.markdown("""
 st.title("✨ Stargaze")
 
 # --- SESSION STATE SETUP ---
+# Default to PUNE Coordinates
+if 'lat' not in st.session_state: st.session_state.lat = 18.5204
+if 'lon' not in st.session_state: st.session_state.lon = 73.8567
+
 if 'sim_date' not in st.session_state:
     st.session_state.sim_date = datetime.now().date()
     
 if 'sim_time' not in st.session_state:
     now = datetime.now()
     st.session_state.sim_time = time(now.hour, now.minute)
-    
-if 'lat' not in st.session_state: st.session_state.lat = 19.07
-if 'lon' not in st.session_state: st.session_state.lon = 72.87
 
-# --- HELPER: RESET TO NOW ---
+# --- HELPER: TIMEZONE LOGIC ---
+# Define IST Timezone
+IST = pytz.timezone('Asia/Kolkata')
+
 def reset_to_now():
-    """Forces the slider and date picker to current system time"""
-    now = datetime.now()
-    st.session_state.sim_date = now.date()
-    st.session_state.sim_time = time(now.hour, now.minute)
+    """Resets slider to current IST time"""
+    # Get current time in IST directly
+    now_ist = datetime.now(IST)
+    st.session_state.sim_date = now_ist.date()
+    st.session_state.sim_time = time(now_ist.hour, now_ist.minute)
 
 # --- 1. SETTINGS MENU ---
 with st.expander("⚙️ Location & Time", expanded=False):
     
     # A. MAP PICKER
     st.write("**Tap map to set location:**")
-    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=4)
+    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=5)
     m.add_child(folium.LatLngPopup())
     map_data = st_folium(m, height=250, width="100%")
 
@@ -396,50 +399,57 @@ with st.expander("⚙️ Location & Time", expanded=False):
         st.session_state.lat = map_data['last_clicked']['lat']
         st.session_state.lon = map_data['last_clicked']['lng']
 
-    st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f}")
+    st.caption(f"Selected: {st.session_state.lat:.4f}, {st.session_state.lon:.4f} (Pune Default)")
 
-    # B. STELLARIUM TIME CONTROLS
+    # B. TIME CONTROLS (IST)
     st.markdown("---")
     
     col1, col2 = st.columns([3, 1])
     with col1:
         st.date_input("Date", key="sim_date")
     with col2:
-        st.button("↺ Now", on_click=reset_to_now, help="Jump to current time")
+        st.button("↺ Now", on_click=reset_to_now, help="Jump to current IST time")
 
     st.slider(
-        "Time Scrub",
+        "Time (IST)",
         min_value=time(0, 0),
         max_value=time(23, 59),
         format="HH:mm",
         key="sim_time",
-        help="Drag to change time of day"
+        help="Drag to change time (Indian Standard Time)"
     )
 
-    # C. VISUAL SETTINGS (NEW!) 👁️
+    # C. VISUAL SETTINGS
     st.markdown("---")
-    # This toggle controls whether lines are drawn
     show_constellations = st.toggle("Show Constellations", value=True)
 
-# Combine Date and Slider Time into one object
-observer_time = datetime.combine(st.session_state.sim_date, st.session_state.sim_time).replace(tzinfo=pytz.utc)
+# --- 2. TIME CALCULATION ENGINE ---
+# 1. Combine Date + Slider Time
+user_datetime_naive = datetime.combine(st.session_state.sim_date, st.session_state.sim_time)
 
-# --- 2. MAIN APP ---
+# 2. Localize to IST (This tells Python: "The user meant 10 PM in India")
+user_datetime_ist = IST.localize(user_datetime_naive)
+
+# 3. Convert to UTC (This is what Skyfield needs for physics)
+# 10 PM IST -> 4:30 PM UTC
+observer_time_utc = user_datetime_ist.astimezone(pytz.utc)
+
+# --- 3. MAIN APP ---
 tab1, tab2 = st.tabs(["🪐 3D Immersion", "🗺️ 2D Map"])
 
-st.caption(f"Observing Sky at: **{observer_time.strftime('%Y-%m-%d %H:%M')}**")
+# Display the Time conversion for clarity
+st.caption(f"Observing Sky at: **{user_datetime_ist.strftime('%H:%M')} IST** (calc: {observer_time_utc.strftime('%H:%M')} UTC)")
 
 with st.spinner("Aligning satellites..."):
     df = star_logic.load_star_data()
-    visible_stars = star_logic.calculate_sky_positions(df, st.session_state.lat, st.session_state.lon, observer_time)
+    # Pass UTC time to the calculator
+    visible_stars = star_logic.calculate_sky_positions(df, st.session_state.lat, st.session_state.lon, observer_time_utc)
 
 with tab1:
-    # PASS THE SWITCH VALUE HERE
     fig_3d = star_logic.create_3d_sphere_chart(
         visible_stars, 
         show_constellations=show_constellations
     )
-    
     fig_3d.update_layout(height=500, showlegend=False) 
     st.plotly_chart(fig_3d, use_container_width=True)
 
