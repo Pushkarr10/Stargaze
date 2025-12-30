@@ -52,97 +52,120 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
 # ==========================================
 # Edit THIS function to change constellation shapes.
 # It's separate from the main chart logic.
-
+# ==========================================
+# --- 3. THE MODULAR ART SECTION (HIP IDs) ---
+# ==========================================
 def add_constellation_art(fig, visible_stars_df):
     """
-    Draws detailed constellation lines. 
-    This function is modular: edit the dictionary below to change the art.
+    Draws detailed constellation art using HIP IDs.
+    This ensures complex shapes (Shields, Tails) always connect correctly.
     """
     
-    # --- A. THE ART DATABASE ---
-    # Pairs of star names (must be uppercase) to connect with lines.
-    # This version includes the detailed Orion from your image.
-    CONSTELLATIONS = {
-        "Orion (Hunter)": [
-            # The main body
-            ("BETELGEUSE", "MEISSA"), ("MEISSA", "BELLATRIX"),
-            ("BETELGEUSE", "ALNITAK"), ("BELLATRIX", "MINTAKA"),
-            ("ALNITAK", "ALNILAM"), ("ALNILAM", "MINTAKA"),
-            ("ALNITAK", "SAIPH"), ("MINTAKA", "RIGEL"), ("RIGEL", "SAIPH"),
-            # The Shield (Pi Orionis chain)
-            ("BELLATRIX", "PI3 ORIONIS"), ("PI3 ORIONIS", "PI2 ORIONIS"), 
-            ("PI2 ORIONIS", "PI1 ORIONIS"), ("PI3 ORIONIS", "PI4 ORIONIS"),
-            ("PI4 ORIONIS", "PI5 ORIONIS"),
-            # The Club / Arm
-            ("BETELGEUSE", "MU ORIONIS"), ("MU ORIONIS", "NU ORIONIS"),
-            ("NU ORIONIS", "XI ORIONIS")
+    # --- 1. THE ART DATABASE (HIP IDs) ---
+    # We use integers (HIP Numbers) because names are unreliable.
+    
+    # A. PRIMARY SHAPES (Thick Lines) - The main "Stick Figure"
+    MAIN_BODY = {
+        "Orion Body": [
+            (27989, 26207), # Betelgeuse -> Meissa (Head)
+            (26207, 25336), # Meissa -> Bellatrix (Shoulder)
+            (27989, 26311), # Betelgeuse -> Alnitak (Belt)
+            (25336, 25930), # Bellatrix -> Mintaka (Belt)
+            (26311, 26727), (26727, 25930), # The Belt (Alnitak->Alnilam->Mintaka)
+            (26311, 27366), # Alnitak -> Saiph (Leg)
+            (25930, 24436), # Mintaka -> Rigel (Leg)
+            (27366, 24436)  # Saiph -> Rigel (Feet Base)
         ],
-        "Ursa Major (Big Dipper)": [
-            ("DUBHE", "MERAK"), ("MERAK", "PHECDA"), ("PHECDA", "MEGREZ"),
-            ("MEGREZ", "DUBHE"), ("MEGREZ", "ALIOTH"), ("ALIOTH", "MIZAR"), 
-            ("MIZAR", "ALKAID")
+        "Scorpius Body": [
+            (80763, 78820), # Antares -> Acrab (Head)
+            (78820, 78401), # Acrab -> Dschubba
+            (78401, 78265), # Dschubba -> Pi Sco
+            (80763, 81266), # Antares -> Tau Sco (Body Start)
+            (81266, 82396), # Tau -> Epsilon (Wei)
+            (82396, 82514), # Epsilon -> Mu
+            (82514, 82729), # Mu -> Zeta
+            (82729, 84143), # Zeta -> Eta
+            (84143, 86228), # Eta -> Theta (Sargas)
+            (86228, 87073), # Theta -> Iota
+            (87073, 86670), # Iota -> Kappa
+            (86670, 85927), # Kappa -> Lambda (Shaula - Stinger)
+            (85927, 85696)  # Shaula -> Upsilon (Lesath - Stinger Tip)
         ],
-        "Cassiopeia (The Queen)": [
-            ("CAPH", "SCHEDAR"), ("SCHEDAR", "NAVI"), 
-            ("NAVI", "RUCHBAH"), ("RUCHBAH", "SEGIN")
+        "Ursa Major": [
+            (54061, 53910), (53910, 58001), (58001, 59774), # Cup
+            (59774, 54061), # Cup Close
+            (59774, 62956), (62956, 65378), (65378, 67301)  # Handle
         ],
-        "Scorpius (Scorpion)": [
-            ("ANTARES", "ACRAB"), ("ACRAB", "DSCHUBBA"), 
-            ("ANTARES", "WEI"), ("WEI", "SARGAS"), ("SARGAS", "SHAULA"), 
-            ("SHAULA", "LESATH")
+        "Cassiopeia": [
+            (11569, 94263), (94263, 4427), (4427, 2685), (2685, 8886)
         ],
-        "Gemini (The Twins)": [
-            ("POLLUX", "CASTOR"), ("POLLUX", "WASAT"), ("CASTOR", "MEBSUTA")
+        "Crux": [
+            (60718, 59747), # Acrux -> Gacrux (Vertical)
+            (62434, 58120)  # Mimosa -> Imai (Horizontal)
         ]
     }
 
-    # --- B. THE DRAWING LOGIC ---
-    # Create lookup: Clean Name -> Data
-    # Sort by magnitude to pick the brightest star if names are duplicated
-    visible_stars_df = visible_stars_df.sort_values('mag', ascending=True)
+    # B. SECONDARY ART (Thin/Faint Lines) - Shields, Clubs, Claws
+    ART_DETAILS = {
+        "Orion Shield": [
+            (25336, 22449), # Bellatrix -> Pi1 (Shield Start)
+            (22449, 22509), (22509, 22549), # Pi1->Pi2->Pi3
+            (22549, 22797), (22797, 22957), # Pi3->Pi4->Pi5
+            (22957, 23123)  # Pi5->Pi6
+        ],
+        "Orion Club": [
+            (27989, 28814), # Betelgeuse -> Mu (Arm)
+            (28814, 29038), (29038, 29426), # Mu->Nu->Xi (Club Up)
+            (29426, 28716)  # Xi->Chi1 (Club Top)
+        ],
+        "Scorpius Claws": [
+            (78820, 76333), # Acrab -> Nu Sco (Claw 1)
+            (78401, 76041)  # Dschubba -> Rho Sco (Claw 2)
+        ]
+    }
+
+    # --- 2. DRAWING LOGIC ---
     
+    # Create a fast lookup: HIP_ID -> {Alt, Az}
+    # We strictly use IDs now. No name guessing.
     star_map = {}
     for index, row in visible_stars_df.iterrows():
-        clean_name = row['proper_clean']
-        if clean_name not in star_map:
-            star_map[clean_name] = {'altitude': row['altitude'], 'azimuth': row['azimuth']}
+        try:
+            # ID must be int
+            star_map[int(row['id'])] = {'altitude': row['altitude'], 'azimuth': row['azimuth']}
+        except: continue
 
-    # Draw Lines
-    for name, pairs in CONSTELLATIONS.items():
-        x_lines, y_lines, z_lines = [], [], []
-        has_lines = False
-        
-        for star1, star2 in pairs:
-            # Smart Search: Check for exact match first, then partial match
-            s1_data, s2_data = None, None
+    # Helper to draw a set of lines
+    def draw_layer(dictionary, color, width, opacity):
+        for name, pairs in dictionary.items():
+            x_lines, y_lines, z_lines = [], [], []
+            has_lines = False
             
-            if star1 in star_map: s1_data = star_map[star1]
-            if star2 in star_map: s2_data = star_map[star2]
+            for hip1, hip2 in pairs:
+                if hip1 in star_map and hip2 in star_map:
+                    s1, s2 = star_map[hip1], star_map[hip2]
+                    for s in [s1, s2]:
+                        alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
+                        x_lines.append(100 * np.cos(alt) * np.sin(az))
+                        y_lines.append(100 * np.cos(alt) * np.cos(az))
+                        z_lines.append(100 * np.sin(alt))
+                    x_lines.append(None); y_lines.append(None); z_lines.append(None)
+                    has_lines = True
             
-            if not s1_data:
-                for key in star_map:
-                    if star1 in key: s1_data = star_map[key]; break
-            if not s2_data:
-                for key in star_map:
-                    if star2 in key: s2_data = star_map[key]; break
+            if has_lines:
+                fig.add_trace(go.Scatter3d(
+                    x=x_lines, y=y_lines, z=z_lines,
+                    mode='lines',
+                    line=dict(color=color, width=width),
+                    opacity=opacity,
+                    name=name, hoverinfo='name'
+                ))
 
-            # If we found both ends, draw the line
-            if s1_data and s2_data:
-                for s in [s1_data, s2_data]:
-                    alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
-                    x_lines.append(100 * np.cos(alt) * np.sin(az))
-                    y_lines.append(100 * np.cos(alt) * np.cos(az))
-                    z_lines.append(100 * np.sin(alt))
-                x_lines.append(None); y_lines.append(None); z_lines.append(None)
-                has_lines = True
-        
-        if has_lines:
-            fig.add_trace(go.Scatter3d(
-                x=x_lines, y=y_lines, z=z_lines,
-                mode='lines',
-                line=dict(color='rgba(100, 255, 255, 0.5)', width=3), # Cyan, slightly thinner for detail
-                name=name, hoverinfo='name'
-            ))
+    # Draw Main Body (Thick, Bright Cyan)
+    draw_layer(MAIN_BODY, '#00FFFF', 5, 0.8)
+    
+    # Draw Art Details (Thin, Faint Blue)
+    draw_layer(ART_DETAILS, '#89CFF0', 2, 0.5)
 
     return fig
 # ==========================================
