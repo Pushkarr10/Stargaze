@@ -22,9 +22,8 @@ def load_star_data():
     # Fill missing names with HIP ID
     bright_stars['proper'] = bright_stars['proper'].fillna('HIP ' + bright_stars['id'].astype(str))
     
-    # --- CRITICAL FIX: NORMALIZE NAMES ---
-    # Convert to UPPERCASE and remove spaces to ensure matching works
-    # Example: "Betelgeuse " -> "BETELGEUSE"
+    # --- NORMALIZE NAMES ---
+    # Convert to UPPERCASE and remove spaces for robust matching
     bright_stars['proper_clean'] = bright_stars['proper'].astype(str).str.upper().str.strip()
     
     return bright_stars
@@ -48,32 +47,46 @@ def calculate_sky_positions(df, lat, lon, custom_time=None):
     # Return only stars above horizon
     return df[df['altitude'] > 0]
 
-# --- 3. CONSTELLATION DATABASE (UPPERCASE KEYS) ---
+# --- 3. CONSTELLATION DATABASE (Refined Pairs) ---
+# These pairs form the "classic" stick figures
 CONSTELLATIONS = {
-    "Orion": [
-        ("BETELGEUSE", "BELLATRIX"), ("BELLATRIX", "RIGEL"), ("RIGEL", "SAIPH"), 
-        ("SAIPH", "BETELGEUSE"), ("BETELGEUSE", "MEISSA"), ("ALNITAK", "ALNILAM"), 
-        ("ALNILAM", "MINTAKA"), ("MINTAKA", "BELLATRIX"), ("ALNITAK", "SAIPH")
+    "Orion (Hunter)": [
+        ("BETELGEUSE", "MEISSA"), ("MEISSA", "BELLATRIX"),  # Shoulders / Head
+        ("BETELGEUSE", "ALNITAK"), ("BELLATRIX", "MINTAKA"), # Body
+        ("ALNITAK", "ALNILAM"), ("ALNILAM", "MINTAKA"),     # Belt
+        ("ALNITAK", "SAIPH"), ("MINTAKA", "RIGEL"),         # Legs
+        ("RIGEL", "SAIPH")                                  # Feet Connection (Optional)
     ],
-    "Ursa Major": [
-        ("DUBHE", "MERAK"), ("MERAK", "PHECDA"), ("PHECDA", "MEGREZ"), 
-        ("MEGREZ", "DUBHE"), ("MEGREZ", "ALIOTH"), ("ALIOTH", "MIZAR"), ("MIZAR", "ALKAID")
+    "Ursa Major (Big Dipper)": [
+        ("DUBHE", "MERAK"), ("MERAK", "PHECDA"), ("PHECDA", "MEGREZ"), # The Cup
+        ("MEGREZ", "DUBHE"), 
+        ("MEGREZ", "ALIOTH"), ("ALIOTH", "MIZAR"), ("MIZAR", "ALKAID") # The Handle
     ],
-    "Cassiopeia": [
-        ("CAPH", "SCHEDAR"), ("SCHEDAR", "NAVI"), ("NAVI", "RUCHBAH"), ("RUCHBAH", "SEGIN")
+    "Cassiopeia (The Queen)": [
+        ("CAPH", "SCHEDAR"), ("SCHEDAR", "NAVI"), 
+        ("NAVI", "RUCHBAH"), ("RUCHBAH", "SEGIN") # The 'W' Shape
     ],
-    "Crux": [
-        ("ACRUX", "MIMOSA"), ("MIMOSA", "GACRUX"), ("GACRUX", "IMAI"), ("IMAI", "ACRUX")
+    "Crux (Southern Cross)": [
+        ("ACRUX", "GACRUX"),   # Long axis
+        ("MIMOSA", "IMAI")     # Short axis (Cross bar)
     ],
-    "Scorpius": [
-        ("ANTARES", "ACRAB"), ("ACRAB", "DSCHUBBA"), ("ANTARES", "PAIKAUHALE"), 
-        ("PAIKAUHALE", "WEI"), ("WEI", "SARGAS"), ("SARGAS", "SHAULA"), ("SHAULA", "LESATH")
+    "Scorpius (Scorpion)": [
+        ("ANTARES", "ALNIYAT"), ("ALNIYAT", "ACRAB"), # Head
+        ("ACRAB", "DSCHUBBA"), 
+        ("ANTARES", "WEI"), ("WEI", "SARGAS"),        # Body
+        ("SARGAS", "SHAULA"), ("SHAULA", "LESATH")    # Tail/Stinger
     ],
-    "Canis Major": [
-        ("SIRIUS", "MIRZAM"), ("SIRIUS", "MULIPHEIN"), ("SIRIUS", "WEZEN"), ("WEZEN", "ADHARA")
+    "Canis Major (Great Dog)": [
+        ("SIRIUS", "MIRZAM"),  # Head
+        ("SIRIUS", "MULIPHEIN"), 
+        ("SIRIUS", "WEZEN"),   # Body
+        ("WEZEN", "ADHARA"),   # Rear Leg
+        ("WEZEN", "ALUDRA")    # Tail
     ],
-    "Gemini": [
-        ("POLLUX", "CASTOR"), ("POLLUX", "WASAT"), ("CASTOR", "MEBSUTA")
+    "Gemini (The Twins)": [
+        ("POLLUX", "CASTOR"),  # The heads
+        ("POLLUX", "WASAT"), ("WASAT", "ALZIRR"), # Twin 1 Body
+        ("CASTOR", "MEBSUTA"), ("MEBSUTA", "TEJAT") # Twin 2 Body
     ]
 }
 
@@ -82,14 +95,16 @@ def add_constellations(fig, visible_stars_df):
     Draws constellation lines using robust UPPERCASE matching.
     """
     # Create lookup: Clean Name -> Data
-    # We must handle duplicates gracefully, so we loop manually
-    star_map = {}
+    # Priority: If duplicates exist, we want the brightest star.
+    # We sort by Magnitude (ascending = brighter) first.
+    visible_stars_df = visible_stars_df.sort_values('mag', ascending=True)
     
-    # We map "BETELGEUSE" -> {alt, az}. 
-    # If a name contains "BETELGEUSE" (like "ALPHA ORIONIS (BETELGEUSE)"), we map that too.
+    star_map = {}
     for index, row in visible_stars_df.iterrows():
         clean_name = row['proper_clean']
-        star_map[clean_name] = {'altitude': row['altitude'], 'azimuth': row['azimuth']}
+        # Only store the first (brightest) occurrence of a name
+        if clean_name not in star_map:
+            star_map[clean_name] = {'altitude': row['altitude'], 'azimuth': row['azimuth']}
 
     # Draw Lines
     for name, pairs in CONSTELLATIONS.items():
@@ -97,12 +112,29 @@ def add_constellations(fig, visible_stars_df):
         has_lines = False
         
         for star1, star2 in pairs:
-            # Direct check (Fastest)
-            if star1 in star_map and star2 in star_map:
-                s1, s2 = star_map[star1], star_map[star2]
-                
+            # Check for substring matches (e.g. "BETELGEUSE" inside "ALPHA ORIONIS (BETELGEUSE)")
+            # This is a bit slower but safer if names aren't exact.
+            s1_data = None
+            s2_data = None
+            
+            # Fast exact match first
+            if star1 in star_map: s1_data = star_map[star1]
+            if star2 in star_map: s2_data = star_map[star2]
+            
+            # Fallback: Search keys if exact match fails
+            if not s1_data:
+                for key in star_map:
+                    if star1 in key: 
+                        s1_data = star_map[key]; break
+            if not s2_data:
+                for key in star_map:
+                    if star2 in key: 
+                        s2_data = star_map[key]; break
+
+            # If we found both ends of the stick
+            if s1_data and s2_data:
                 # Math
-                for s in [s1, s2]:
+                for s in [s1_data, s2_data]:
                     alt, az = np.radians(s['altitude']), np.radians(s['azimuth'])
                     x_lines.append(100 * np.cos(alt) * np.sin(az))
                     y_lines.append(100 * np.cos(alt) * np.cos(az))
@@ -115,7 +147,7 @@ def add_constellations(fig, visible_stars_df):
             fig.add_trace(go.Scatter3d(
                 x=x_lines, y=y_lines, z=z_lines,
                 mode='lines',
-                line=dict(color='rgba(0, 255, 255, 0.5)', width=5), # Cyan
+                line=dict(color='rgba(100, 255, 255, 0.4)', width=4), # Cyan, thinner for neatness
                 name=name,
                 hoverinfo='name'
             ))
@@ -229,7 +261,7 @@ def create_3d_sphere_chart(visible_stars, show_constellations=False):
     
     return fig
 
-# --- 7. 2D CHART (Unchanged) ---
+# --- 7. 2D CHART ---
 def create_star_chart(visible_stars):
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(r = 90 - visible_stars['altitude'], theta = visible_stars['azimuth'], mode = 'markers', marker = dict(size = np.clip(12 - visible_stars['mag'] * 1.5, 0.5, 12), color = 'white', opacity = 0.8), hovertext = visible_stars['proper']))
