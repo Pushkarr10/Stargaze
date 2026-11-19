@@ -1,0 +1,64 @@
+{
+  "constellations": [
+    {
+      "name": "Orion",
+      "barcodes": [[27.0, 52.1, 100.9], [35.2, 61.8, 83.0], [45.1, 45.1, 89.8]],
+      "metadata": {
+        "lore": "Hunter of the sky, his belt shines brightest.",
+        "brightest_star": "Rigel",
+        "season": "Winter",
+        "rarity": "Common"
+      }
+    },
+    {
+      "name": "Ursa Major",
+      "barcodes": [[42.3, 58.1, 79.6], [38.9, 41.2, 99.9]],
+      "metadata": {
+        "lore": "Great Bear, used for navigation.",
+        "brightest_star": "Alioth",
+        "season": "Spring",
+        "rarity": "Common"
+      }
+    },
+    {
+      "name": "Cassiopeia",
+      "barcodes": [[52.4, 52.4, 75.2], [32.1, 32.1, 115.8]],
+      "metadata": {
+        "lore": "Queen seated on her throne.",
+        "brightest_star": "Segin",
+        "season": "Fall",
+        "rarity": "Uncommon"
+      }
+    },
+    {
+      "name": "Leo",
+      "barcodes": [[33.4, 72.1, 74.5], [45.0, 45.0, 90.0]],
+      "metadata": {
+        "lore": "The proud lion, ruler of the savanna.",
+        "brightest_star": "Regulus",
+        "season": "Spring",
+        "rarity": "Uncommon"
+      }
+    },
+    {
+      "name": "Scorpius",
+      "barcodes": [[15.2, 22.8, 142.0], [28.9, 31.2, 119.9]],
+      "metadata": {
+        "lore": "The scorpion, a deadly hunter.",
+        "brightest_star": "Antares",
+        "season": "Summer",
+        "rarity": "Rare"
+      }
+    },
+    {
+      "name": "Canis Major",
+      "barcodes": [[38.1, 71.2, 70.7], [40.1, 40.1, 99.8]],
+      "metadata": {
+        "lore": "The great dog following Orion.",
+        "brightest_star": "Sirius",
+        "season": "Winter",
+        "rarity": "Common"
+      }
+    }
+  ]
+}

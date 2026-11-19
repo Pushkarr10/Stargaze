@@ -1,0 +1,11 @@
+streamlit
+opencv-python-headless
+numpy
+scipy
+pandas
+Pillow
+plotly
+skyfield
+folium
+streamlit-folium
+pytz
