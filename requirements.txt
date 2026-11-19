@@ -11,3 +11,4 @@ skyfield
 streamlit-folium
 folium
 Pillow
+pytz
